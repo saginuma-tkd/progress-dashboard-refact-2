@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: "HeiseiKakuGo-W5", sans-serif; font-size: 10pt; }
+        h1 { font-size: 20pt; border-bottom: 2px solid #333; margin-bottom: 20px; }
+        .info { margin-bottom: 20px; text-align: right; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #eee; border: 1px solid #333; padding: 8px; text-align: center; font-size: 9pt; }
+        td { border: 1px solid #333; padding: 8px; text-align: center; font-size: 9pt; }
+    </style>
+</head>
+<body>
+    <h1>過去問演習レポート</h1>
+    <div class="info">
+        生徒名: {{ student_name }} 様<br>
+        発行日: {{ date_str }}
+    </div>
+
+    {% if chart_image %}
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="{{ chart_image }}" style="width: 100%; max-width: 600px;">
+    </div>
+    {% endif %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>実施日</th>
+                <th>大学・学部</th>
+                <th>年度</th>
+                <th>科目</th>
+                <th>得点率</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.date }}</td>
+                <td>{{ item.university }} {{ item.faculty }}</td>
+                <td>{{ item.year }}年</td>
+                <td>{{ item.subject }}</td>
+                <td>
+                    {% if item.total_questions > 0 %}
+                        {{ (item.correct_answers / item.total_questions * 100) | round(1) }}%
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

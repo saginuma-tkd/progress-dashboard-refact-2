@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: "HeiseiKakuGo-W5", sans-serif; font-size: 10pt; }
+        h1 { font-size: 20pt; border-bottom: 2px solid #333; margin-bottom: 20px; }
+        .info { margin-bottom: 20px; text-align: right; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #333; padding: 6px; text-align: center; font-size: 9pt; }
+        th { background: #eee; }
+    </style>
+</head>
+<body>
+    <h1>模試成績レポート</h1>
+    <div class="info">
+        生徒名: {{ student_name }} 様<br>
+        発行日: {{ date_str }}
+    </div>
+
+    <div style="text-align: center; margin-bottom: 30px;">
+        {% if chart_image %}
+            <img src="{{ chart_image }}" style="width: 100%; max-width: 600px;">
+        {% else %}
+            <p>（グラフ画像なし）</p>
+        {% endif %}
+    </div>
+
+    <h3>【成績一覧】</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>模試名</th>
+                <th>型</th>
+                <th>判定</th>
+                <th>総合偏差値/得点</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.type }}</td>
+                <td>{{ item.grade }}</td>
+                <td>
+                    {{ item.score_summary }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

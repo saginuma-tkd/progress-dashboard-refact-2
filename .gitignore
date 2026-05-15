@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+
+# VS Code
+.vscode/
+
+# Python / バックエンド関連
+backend/.venv/
+backend/__pycache__/
+backend/local_dev.db
+backend/.env
+
+# React / フロントエンド関連
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# OSの一時ファイル
+.DS_Store

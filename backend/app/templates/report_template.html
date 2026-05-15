@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        /* PDF用のスタイル定義 */
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        body {
+            font-family: "HeiseiKakuGo-W5", sans-serif;
+            font-size: 10pt;
+            line-height: 1.5;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 24pt;
+            margin: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+        }
+
+        .user-info {
+            margin-bottom: 20px;
+            font-size: 12pt;
+        }
+
+        /* サマリーエリア */
+        .summary-table {
+            width: 100%;
+            margin-bottom: 30px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            border-collapse: collapse;
+        }
+        .summary-table td {
+            text-align: center;
+            padding: 15px;
+            width: 33%;
+            border-right: 1px solid #eee;
+        }
+        .summary-table td:last-child {
+            border-right: none;
+        }
+        .label {
+            font-size: 10pt;
+            color: #666;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .value {
+            font-size: 16pt;
+            font-weight: bold;
+            display: block;
+        }
+
+        .details-header {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 10px;
+            background-color: #eee;
+            padding: 5px 10px;
+            border-left: 5px solid #333;
+        }
+
+        /* 詳細データテーブル */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th {
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #999;
+            padding: 8px;
+            text-align: left;
+            font-size: 9pt;
+            font-weight: bold;
+        }
+        .data-table td {
+            border-bottom: 1px solid #eee;
+            padding: 8px;
+            font-size: 10pt;
+            vertical-align: middle;
+        }
+        .data-table tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>学習進捗レポート</h1>
+    </div>
+
+    <div class="user-info">
+        <div><strong>生徒名:</strong> {{ student_name }} 様</div>
+        <div style="text-align: right; margin-top: -20px;">発行日: {{ date_str }}</div>
+    </div>
+
+    <table class="summary-table">
+        <tr>
+            <td>
+                <span class="label">総学習時間</span>
+                <span class="value">{{ total_study_time }} 時間</span>
+            </td>
+            <td>
+                <span class="label">達成率</span>
+                <span class="value">{{ total_progress_pct }} %</span>
+            </td>
+            <td>
+                <span class="label">英検スコア</span>
+                <span class="value" style="font-size: 12pt;">{{ eiken_str }}</span>
+            </td>
+        </tr>
+    </table>
+
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h3>【学習進捗グラフ】</h3>
+        {% if chart_image %}
+            <img src="{{ chart_image }}" style="width: 100%; max-width: 600px; height: auto;">
+        {% else %}
+            <p style="color: #999;">グラフデータがありません</p>
+        {% endif %}
+    </div>
+
+    <div class="details-header">学習詳細</div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="20%">科目</th>
+                <th width="40%">参考書名</th>
+                <th width="25%">進捗 (完了/全)</th>
+                <th width="15%">率</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.subject }}</td>
+                <td>{{ item.book_name }}</td>
+                <td>{{ item.completed_units }} / {{ item.total_units }}</td>
+                <td>
+                    {{ item.pct }}%
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

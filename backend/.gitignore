@@ -1,0 +1,3 @@
+# Local env and DB
+.env
+local_dev.db

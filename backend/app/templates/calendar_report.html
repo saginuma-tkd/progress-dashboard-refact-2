@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page { size: A4 landscape; margin: 1cm; } /* カレンダーは見やすいように横向き推奨 */
+        body { font-family: "HeiseiKakuGo-W5", sans-serif; font-size: 10pt; }
+        h1 { font-size: 18pt; margin-bottom: 10px; }
+        .info { text-align: right; font-size: 10pt; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>入試スケジュール</h1>
+    <div class="info">
+        生徒名: {{ student_name }} 様 / 発行日: {{ date_str }}
+    </div>
+
+    <div style="text-align: center; width: 100%;">
+        {% if chart_image %}
+            <img src="{{ chart_image }}" style="width: 100%;">
+        {% else %}
+            <p>カレンダー画像が取得できませんでした</p>
+        {% endif %}
+    </div>
+
+    <h3 style="margin-top: 20px;">出願・試験リスト</h3>
+    <ul style="font-size: 9pt;">
+        {% for item in items %}
+        <li>
+            <strong>{{ item.univ }} {{ item.faculty }}</strong>: 
+            試験日 {{ item.exam_date }} / 合格発表 {{ item.announce_date }}
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
