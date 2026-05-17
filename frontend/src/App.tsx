@@ -33,7 +33,7 @@ const MaintenanceGuard: React.FC<{ children: React.ReactNode }> = ({ children })
   const location = useLocation();
 
   // システム設定のロード中のみ待機
-  if (systemLoading) return null; 
+  if (systemLoading) return null;
 
   // 1. ログイン画面へのアクセスは常に許可 (開発者が入るため)
   if (location.pathname === '/login') {
@@ -68,17 +68,17 @@ const App: React.FC = () => {
       <Router>
         <AuthProvider>
           <SystemProvider> {/* 追加: システム設定のコンテキスト */}
-            
+
             {/* 追加: 画面最上部に常駐するお知らせバナー */}
             <SystemBanner />
-            
+
             {/* 追加: メンテナンス状態を監視するガード */}
             <MaintenanceGuard>
               <Routes>
                 <Route path="/login" element={<Login />} />
-                
+
                 <Route path="/print-report/:studentId" element={<ReportPrintView />} />
-                
+
                 {/* 保護されたルート (ログイン必須) */}
                 <Route path="/" element={
                   <ProtectedRoute>
@@ -87,24 +87,24 @@ const App: React.FC = () => {
                 }>
                   {/* ダッシュボードホーム */}
                   <Route index element={<Dashboard />} />
-                  
+
                   {/* 各機能ページ */}
                   <Route path="past-exam" element={<PastExam />} />
-                  <Route path="materials" element={<MaterialSearch/>} />
+                  <Route path="materials" element={<MaterialSearch />} />
                   <Route path="statistics" element={<Statistics />} />
                   <Route path="bug-report" element={<BugReport />} />
                   <Route path="changelog" element={<Changelog />} />
                   <Route path="student/submit-results" element={<SubmitResultsPage />} />
                   <Route path="student/transfer-request" element={<TransferRequestPage />} />
                   <Route path="student/absence-report" element={<AbsenceReportPage />} />
-                  
+
                   {/* 講師・管理者用ページ */}
                   <Route path="applications-review" element={
                     <ProtectedRoute roles={['admin', 'developer', 'instructor']}>
                       <ApplicationReviewPage />
                     </ProtectedRoute>
                   } />
-                  
+
                   {/* 管理者専用ページ */}
                   <Route path="admin" element={
                     <ProtectedRoute roles={['admin', 'developer']}>
@@ -120,7 +120,7 @@ const App: React.FC = () => {
                   } />
 
                   {/* システム管理者用ページ */}
-                  <Route path="system-admin" element={
+                  <Route path="system_admin" element={
                     <ProtectedRoute roles={['super_admin']}>
                       <SystemAdminDashboard />
                     </ProtectedRoute>

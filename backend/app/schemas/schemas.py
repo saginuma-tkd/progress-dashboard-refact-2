@@ -1,6 +1,7 @@
 from typing import List, Optional, Any, Dict
 from pydantic import BaseModel
 from datetime import date
+from pydantic import EmailStr
 
 # --- User Schemas ---
 class UserBase(BaseModel):
@@ -302,6 +303,7 @@ class TeachingMaterialResponse(BaseModel):
 from datetime import datetime
 
 class TransferRequestBase(BaseModel):
+    instructor_id: int
     original_date: str
     candidate_dates: str
     reason: str
@@ -325,9 +327,10 @@ class TransferRequestResponse(TransferRequestBase):
         from_attributes = True
 
 class AbsenceReportBase(BaseModel):
-    day_of_week: str
+    instructor_id: int
+    absence_date: str
     reason: str
-    report_info: str
+    report_info: Optional[str] = ""
 
 class AbsenceReportCreate(AbsenceReportBase):
     pass
@@ -343,6 +346,18 @@ class AbsenceReportResponse(AbsenceReportBase):
     status: str
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class TenantCreateWithAdmin(BaseModel):
+    tenant_name: str
+    admin_email: EmailStr
+    admin_password: str
+
+class TenantOut(BaseModel):
+    id: int
+    name: str
 
     class Config:
         from_attributes = True

@@ -12,6 +12,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from app.routers.deps import get_current_user
 
+
 router = APIRouter()
 
 @router.get("/", response_model=List[schemas.Student])
@@ -34,6 +35,26 @@ def read_my_student_profile(
     if not student:
         raise HTTPException(status_code=404, detail="あなたの生徒プロフィールが見つかりません。管理者にお問い合わせください。")
     return student
+
+@router.get("/instructors")
+def get_instructors(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. ログイン中のユーザー(生徒アカウント)に紐づく「生徒プロフィール(Student)」を取得
+    student = db.query(Student).filter(Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="生徒プロフィールが見つかりません")
+
+    # 2. StudentInstructor(担当紐付けテーブル) を経由して、この生徒の担当講師を取得
+    # （roleがuserかadminかは問わず、紐付いている人全員を取得します）
+    instructors = db.query(User).join(
+        StudentInstructor, User.id == StudentInstructor.user_id
+    ).filter(
+        StudentInstructor.student_id == student.id
+    ).all()
+    
+    return [{"id": inst.id, "username": inst.username} for inst in instructors]
 
 @router.get("/{student_id}", response_model=schemas.Student)
 def read_student(

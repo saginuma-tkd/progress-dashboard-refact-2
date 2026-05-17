@@ -1,128 +1,53 @@
-"""
-System Admin Router - super_admin 専用のテナント管理 CRUD API
-"""
-from fastapi import APIRouter, Depends, HTTPException
+# backend/app/routers/system_admin.py
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
+from typing import List
 
 from app.db.database import get_db
 from app.models.models import Tenant, User
+from app.schemas.schemas import TenantCreateWithAdmin, TenantOut
+from app.routers.deps import get_current_super_admin
 from app.core.security import get_password_hash
-from app.routers.deps import get_current_super_admin_user
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/system_admin",
+    tags=["system_admin"],
+    dependencies=[Depends(get_current_super_admin)]
+)
 
+@router.get("/tenants", response_model=List[TenantOut])
+def get_all_tenants(db: Session = Depends(get_db)):
+    return db.query(Tenant).all()
 
-# ─── Pydantic スキーマ ───────────────────────────────────────────
+@router.post("/tenants", response_model=TenantOut)
+def create_tenant_and_admin(tenant_in: TenantCreateWithAdmin, db: Session = Depends(get_db)):
+    # 1. ユーザー名（メールアドレス）の重複チェック： User.email ではなく User.username
+    user = db.query(User).filter(User.username == tenant_in.admin_email).first()
+    if user:
+        raise HTTPException(status_code=400, detail="このメールアドレス(ユーザー名)は既に登録されています")
 
-class TenantCreate(BaseModel):
-    """新規テナント開設リクエスト"""
-    tenant_name: str
-    admin_username: str
-    admin_password: str
+    try:
+        # 2. テナント（塾）の作成
+        new_tenant = Tenant(name=tenant_in.tenant_name)
+        db.add(new_tenant)
+        db.flush() # IDを発番させる
 
-class UserSummary(BaseModel):
-    id: int
-    username: str
-    role: str
-    class Config:
-        from_attributes = True
+        # 3. 初期管理者（塾長）の作成
+        new_admin = User(
+            username=tenant_in.admin_email,                       # 👈 email ではなく username
+            password=get_password_hash(tenant_in.admin_password), # 👈 hashed_password ではなく password
+            role="admin",
+            tenant_id=new_tenant.id
+            # is_active はモデルに無いので削除しました
+        )
+        db.add(new_admin)
+        
+        # 4. 全て成功したらコミット
+        db.commit()
+        db.refresh(new_tenant)
+        return new_tenant
 
-class TenantResponse(BaseModel):
-    id: int
-    name: str
-    user_count: int
-    users: List[UserSummary] = []
-
-class TenantDetail(TenantResponse):
-    pass
-
-
-# ─── エンドポイント ──────────────────────────────────────────────
-
-@router.get("/tenants", response_model=List[TenantResponse])
-def list_tenants(
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_super_admin_user),
-):
-    """全テナント一覧（super_admin 専用）"""
-    tenants = db.query(Tenant).all()
-    result = []
-    for t in tenants:
-        users = db.query(User).filter(User.tenant_id == t.id).all()
-        result.append(TenantResponse(
-            id=t.id,
-            name=t.name,
-            user_count=len(users),
-            users=[UserSummary(id=u.id, username=u.username, role=u.role) for u in users],
-        ))
-    return result
-
-
-@router.post("/tenants", response_model=TenantResponse, status_code=201)
-def create_tenant(
-    payload: TenantCreate,
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_super_admin_user),
-):
-    """
-    新規テナント開設（1トランザクション）
-    - Tenant レコードを作成
-    - 紐づく最初の admin ユーザーを作成
-    """
-    # 重複チェック
-    if db.query(Tenant).filter(Tenant.name == payload.tenant_name).first():
-        raise HTTPException(status_code=400, detail=f"テナント '{payload.tenant_name}' は既に存在します")
-    if db.query(User).filter(User.username == payload.admin_username).first():
-        raise HTTPException(status_code=400, detail=f"ユーザー名 '{payload.admin_username}' は既に使用されています")
-
-    # テナント作成
-    tenant = Tenant(name=payload.tenant_name)
-    db.add(tenant)
-    db.flush()  # tenant.id を取得するために flush
-
-    # 最初の admin ユーザーを作成
-    admin_user = User(
-        username=payload.admin_username,
-        password=get_password_hash(payload.admin_password),
-        role="admin",
-        school=payload.tenant_name,
-        tenant_id=tenant.id,
-    )
-    db.add(admin_user)
-    db.commit()
-    db.refresh(tenant)
-
-    return TenantResponse(
-        id=tenant.id,
-        name=tenant.name,
-        user_count=1,
-        users=[UserSummary(id=admin_user.id, username=admin_user.username, role=admin_user.role)],
-    )
-
-
-@router.delete("/tenants/{tenant_id}", status_code=204)
-def delete_tenant(
-    tenant_id: int,
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_super_admin_user),
-):
-    """テナントを削除（super_admin 専用）"""
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="テナントが見つかりません")
-    db.delete(tenant)
-    db.commit()
-    return
-
-
-@router.get("/users", response_model=List[UserSummary])
-def list_all_users(
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_super_admin_user),
-):
-    """全ユーザー一覧（super_admin 専用）"""
-    return db.query(User).all()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"テナントの作成に失敗しました: {str(e)}")

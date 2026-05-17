@@ -10,11 +10,11 @@ import { LogOut, Home, BookOpen, BarChart2, Settings, ScrollText, MessagesSquare
 
 // Dialog コンポーネントをインポート
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "./components/ui/dialog";
 import ChangePasswordForm from './components/ChangePasswordForm';
 import SupportChatbot from './components/SupportChatbot';
@@ -22,7 +22,7 @@ import SupportChatbot from './components/SupportChatbot';
 export default function DashboardLayout() {
     const { user, logout } = useAuth();
     const location = useLocation();
-    
+
     // モーダルの開閉状態を管理
     const [isPasswordOpen, setIsPasswordOpen] = useState(false);
     // サイドバーの折りたたみ状態を管理 ★追加
@@ -54,19 +54,19 @@ export default function DashboardLayout() {
     if (user?.role === 'admin' || user?.role === 'developer') {
         navItems.push({ name: '管理者ページ', path: '/admin', icon: Settings });
     }
-    
+
     if (user?.role === 'developer') {
-        navItems.push({ name: '開発者ページ', path: '/developer', icon: Wrench});
+        navItems.push({ name: '開発者ページ', path: '/developer', icon: Wrench });
     }
 
     if (user?.role === 'super_admin') {
-        navItems.push({ name: 'システム管理', path: '/system-admin', icon: ShieldAlert });
+        navItems.push({ name: 'システム管理', path: '/system_admin', icon: ShieldAlert });
     }
 
     return (
         <div className="flex h-screen bg-gray-100 overflow-hidden">
             {/* Sidebar */}
-            <aside 
+            <aside
                 className={cn(
                     "bg-white shadow-md flex flex-col relative transition-all duration-300 z-20",
                     isCollapsed ? "w-20" : "w-64" // ★幅を動的に変更
@@ -113,8 +113,8 @@ export default function DashboardLayout() {
                     {/* パスワード変更モーダル */}
                     <Dialog open={isPasswordOpen} onOpenChange={setIsPasswordOpen}>
                         <DialogTrigger asChild>
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 title={isCollapsed ? "パスワード変更" : undefined}
                                 className={cn(
                                     "w-full text-gray-700 hover:bg-gray-100",
@@ -134,13 +134,13 @@ export default function DashboardLayout() {
                     </Dialog>
 
                     {/* ログアウトボタン */}
-                    <Button 
-                        variant="ghost" 
+                    <Button
+                        variant="ghost"
                         title={isCollapsed ? "ログアウト" : undefined}
                         className={cn(
                             "w-full text-red-500 hover:text-red-700 hover:bg-red-50",
                             isCollapsed ? "justify-center px-0" : "justify-start px-4"
-                        )} 
+                        )}
                         onClick={logout}
                     >
                         <LogOut className={cn("w-5 h-5 flex-shrink-0", !isCollapsed && "mr-3")} />

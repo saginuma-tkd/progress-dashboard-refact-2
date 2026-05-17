@@ -26,7 +26,6 @@ def seed_demo_data():
         # ==========================================
         print("Creating instructor data...")
         instructors = [
-            {"username": "superadmin@example.com", "role": "super_admin", "school": "System"},
             {"username": "開発者", "role": "developer", "school": "開発本部"},
             {"username": "admin_shibuya", "role": "admin", "school": "渋谷校"},
             {"username": "inst_shibuya_1", "role": "user", "school": "渋谷校"},
@@ -46,6 +45,16 @@ def seed_demo_data():
                 db.add(inst)
                 db.flush()
             created_instructors.append(inst)
+        super_admin_email = "superadmin@example.com"
+        existing_super_admin = db.query(models.User).filter(models.User.username == super_admin_email).first()
+        if not existing_super_admin:
+            super_admin = models.User(
+                username=super_admin_email,                   # 👈 email ではなく username
+                password=get_password_hash("superadmin123"),  # 👈 hashed_password ではなく password
+                role="super_admin",
+                tenant_id=None
+            )
+            db.add(super_admin)
         db.commit()
 
         # ==========================================
@@ -100,6 +109,7 @@ def seed_demo_data():
                 db.add(models.TransferRequest(
                     tenant_id=tenant_id,
                     student_id=student.id,
+                    instructor_id=created_instructors[main_inst_idx].id, # 👈 追加
                     original_date="2026-06-01",
                     candidate_dates="2026-06-03, 2026-06-04",
                     reason="学校の行事のため",
@@ -112,7 +122,8 @@ def seed_demo_data():
                 db.add(models.AbsenceReport(
                     tenant_id=tenant_id,
                     student_id=student.id,
-                    day_of_week="月曜日",
+                    instructor_id=created_instructors[main_inst_idx].id, # 👈 追加
+                    absence_date="2026-06-05",                           # 👈 day_of_week を absence_date に変更
                     reason="体調不良のため",
                     report_info="次回補講を希望します",
                     status="pending"

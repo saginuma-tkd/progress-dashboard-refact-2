@@ -47,7 +47,7 @@ app.include_router(materials.router, prefix=f"{settings.API_V1_STR}/materials", 
 app.include_router(attendance.router, prefix=f"{settings.API_V1_STR}/attendance", tags={"attendance"})
 app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags={"chat"})
 app.include_router(applications.router, prefix=f"{settings.API_V1_STR}/applications", tags=["applications"])
-app.include_router(system_admin.router, prefix=f"{settings.API_V1_STR}/system-admin", tags=["system-admin"])
+app.include_router(system_admin.router, prefix="/api/v1")
 from app.routers import fix_db
 app.include_router(fix_db.router, prefix=settings.API_V1_STR, tags=["fix"])
 

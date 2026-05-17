@@ -7,6 +7,7 @@ from app.core.security import ALGORITHM
 from app.db.database import get_db
 from app.crud.crud_user import get_user_by_username
 from app.schemas.schemas import TokenData
+from app.models.models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
 
@@ -97,3 +98,11 @@ def get_tenant_query(db: Session, model, current_user):
         # developer や tenant 未設定ユーザーは全件アクセス可
         return db.query(model)
     return db.query(model).filter(model.tenant_id == tid)
+
+def get_current_super_admin(current_user: User = Depends(get_current_user)):
+    if current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="スーパー管理者の権限が必要です"
+        )
+    return current_user

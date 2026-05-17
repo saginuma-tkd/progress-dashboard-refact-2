@@ -1,3 +1,5 @@
+# backend/app/crud/crud_applications.py
+
 from sqlalchemy.orm import Session
 from app.models import models
 from app.schemas import schemas
@@ -19,16 +21,22 @@ def _resolve_tenant_id(db: Session, student_id: int, current_user: models.User) 
 # --- TransferRequest CRUD ---
 
 def create_transfer_request(db: Session, request: schemas.TransferRequestCreate, current_user: models.User, student_id: int):
+    # 🌟 修正: 直接 current_user.tenant_id を使うと空(None)になることがあるので、上の関数を使う
     tenant_id = _resolve_tenant_id(db, student_id, current_user)
-    db_request = models.TransferRequest(
-        **request.dict(),
-        tenant_id=tenant_id,
-        student_id=student_id
+
+    new_req = models.TransferRequest(
+        tenant_id=tenant_id,  # 👈 解決したIDを使う！
+        student_id=student_id,
+        instructor_id=request.instructor_id, # 👈 追加: 担当講師
+        original_date=request.original_date,
+        candidate_dates=request.candidate_dates,
+        reason=request.reason,
+        status="pending"
     )
-    db.add(db_request)
+    db.add(new_req)
     db.commit()
-    db.refresh(db_request)
-    return db_request
+    db.refresh(new_req)
+    return new_req
 
 def get_transfer_requests(db: Session, current_user: models.User, student_id: int = None):
     # tenant_id がない場合はフィルタなしで全件取得（生徒のschoolで絞る）
@@ -53,17 +61,23 @@ def update_transfer_status(db: Session, request_id: int, status: str, current_us
 
 # --- AbsenceReport CRUD ---
 
-def create_absence_report(db: Session, report: schemas.AbsenceReportCreate, current_user: models.User, student_id: int):
+def create_absence_report(db: Session, request: schemas.AbsenceReportCreate, current_user: models.User, student_id: int):
+    # 🌟 修正: 同様に解決したIDを使う
     tenant_id = _resolve_tenant_id(db, student_id, current_user)
-    db_report = models.AbsenceReport(
-        **report.dict(),
-        tenant_id=tenant_id,
-        student_id=student_id
+
+    new_rep = models.AbsenceReport(
+        tenant_id=tenant_id,  # 👈 解決したIDを使う！
+        student_id=student_id,
+        instructor_id=request.instructor_id, # 👈 追加: 担当講師
+        absence_date=request.absence_date,   # 👈 変更: day_of_week から変更
+        reason=request.reason,
+        report_info=request.report_info,     # 👈 追加: レポート進捗
+        status="acknowledged"
     )
-    db.add(db_report)
+    db.add(new_rep)
     db.commit()
-    db.refresh(db_report)
-    return db_report
+    db.refresh(new_rep)
+    return new_rep
 
 def get_absence_reports(db: Session, current_user: models.User, student_id: int = None):
     if hasattr(current_user, 'tenant_id') and current_user.tenant_id:

@@ -1,118 +1,132 @@
-import React, { useState } from 'react';
-import { toast } from 'sonner';
-import { CalendarDays, Send, CheckCircle } from 'lucide-react';
-import api from '../../lib/api';
+// frontend/src/pages/student/TransferRequestPage.tsx
 
-export default function TransferRequestPage() {
-  const [form, setForm] = useState({
+import React, { useState, useEffect } from 'react';
+import api from '../../lib/api';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+
+const TransferRequestPage: React.FC = () => {
+  const [studentName, setStudentName] = useState('');
+  const [instructors, setInstructors] = useState<{ id: number, username: string }[]>([]);
+  const [formData, setFormData] = useState({
+    instructor_id: '',
     original_date: '',
     candidate_dates: '',
-    reason: '',
+    reason: ''
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // 1. 自分の名前はローカルストレージ（ログイン情報）から直接取得する
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+          const userObj = JSON.parse(savedUser);
+          setStudentName(userObj.username);
+        }
+
+        // 2. 講師一覧は先ほど新しく作った専用APIから取得する
+        const instRes = await api.get('/students/instructors'); // ※もし common.py に書いた場合は /common/instructors にしてください
+        setInstructors(instRes.data);
+      } catch (err) {
+        console.error("講師データの取得に失敗しました", err);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.original_date || !form.candidate_dates || !form.reason) {
-      toast.error('すべての項目を入力してください。');
-      return;
-    }
-    setIsSubmitting(true);
+    setMessage(null);
     try {
-      await api.post('/applications/transfer', form);
-      setIsSubmitted(true);
-      toast.success('振替申請を送信しました！');
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || '送信に失敗しました。もう一度お試しください。');
-    } finally {
-      setIsSubmitting(false);
+      await api.post('/applications/transfer', formData);
+      setMessage({ text: '✅ 振替申請を送信しました！', type: 'success' });
+      setFormData({ instructor_id: '', original_date: '', candidate_dates: '', reason: '' }); // リセット
+    } catch (err) {
+      setMessage({ text: '❌ 送信に失敗しました。', type: 'error' });
     }
   };
 
-  if (isSubmitted) {
-    return (
-      <div className="container mx-auto py-16 px-4 max-w-lg text-center">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-10">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">申請を送信しました</h2>
-          <p className="text-gray-600 mb-6">
-            振替申請が正常に送信されました。<br />
-            講師からの確認をお待ちください。
-          </p>
-          <button
-            onClick={() => { setIsSubmitted(false); setForm({ original_date: '', candidate_dates: '', reason: '' }); }}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            別の申請をする
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto py-8 px-4 max-w-2xl">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <CalendarDays className="w-7 h-7 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">振替申請</h1>
-        </div>
-        <p className="text-gray-600 ml-10">
-          授業の振り替えを希望する場合はこちらから申請してください。
-        </p>
-      </div>
+    <div className="p-6 max-w-2xl mx-auto space-y-6">
+      <h1 className="text-3xl font-bold tracking-tight">振替申請</h1>
+      <Card>
+        <CardContent className="pt-6">
+          {message && (
+            <div className={`p-3 rounded-md mb-4 ${message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {message.text}
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* 生徒氏名 (自動入力・編集不可) */}
+            <div className="space-y-2">
+              <Label>生徒氏名</Label>
+              <Input value={studentName} disabled className="bg-gray-100" />
+            </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              元の授業日 <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={form.original_date}
-              onChange={(e) => setForm({ ...form, original_date: e.target.value })}
-            />
-          </div>
+            {/* 担当講師 (プルダウン) */}
+            <div className="space-y-2">
+              <Label htmlFor="instructor_id">担当講師</Label>
+              <select 
+                id="instructor_id" 
+                className="w-full border rounded-md p-2" 
+                value={formData.instructor_id}
+                onChange={e => setFormData({...formData, instructor_id: e.target.value})}
+                required
+              >
+                <option value="">選択してください</option>
+                {instructors.map(inst => (
+                  <option key={inst.id} value={inst.id}>{inst.username} 先生</option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              振替候補日 <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="例: 6月3日、6月4日（複数可）"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={form.candidate_dates}
-              onChange={(e) => setForm({ ...form, candidate_dates: e.target.value })}
-            />
-          </div>
+            {/* 振替元の日付 */}
+            <div className="space-y-2">
+              <Label htmlFor="original_date">振替元の特訓日</Label>
+              <Input 
+                id="original_date" 
+                type="date" 
+                value={formData.original_date}
+                onChange={e => setFormData({...formData, original_date: e.target.value})}
+                required 
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              振替理由 <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              rows={4}
-              placeholder="振替を希望する理由を記入してください"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            />
-          </div>
+            {/* 振替可能な日程 (自由入力) */}
+            <div className="space-y-2">
+              <Label htmlFor="candidate_dates">振替可能な日程（複数可）</Label>
+              <Textarea 
+                id="candidate_dates" 
+                placeholder="例: 10月12日 18:00〜20:00、10月13日 終日可能"
+                value={formData.candidate_dates}
+                onChange={e => setFormData({...formData, candidate_dates: e.target.value})}
+                required 
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send className="w-4 h-4" />
-            {isSubmitting ? '送信中...' : '申請を送信する'}
-          </button>
-        </form>
-      </div>
+            {/* 振替理由 */}
+            <div className="space-y-2">
+              <Label htmlFor="reason">振替理由</Label>
+              <Textarea 
+                id="reason" 
+                placeholder="例: 学校の部活の大会が長引くため"
+                value={formData.reason}
+                onChange={e => setFormData({...formData, reason: e.target.value})}
+                required 
+              />
+            </div>
+
+            <Button type="submit" className="w-full">申請する</Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default TransferRequestPage;

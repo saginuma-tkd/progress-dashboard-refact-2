@@ -334,9 +334,10 @@ class TransferRequest(Base):
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    instructor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     original_date = Column(String)
-    candidate_dates = Column(String)
+    candidate_dates = Column(Text)
     reason = Column(Text)
     
     status = Column(String, nullable=False, default="pending") # pending, approved, rejected
@@ -345,6 +346,7 @@ class TransferRequest(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     student = relationship("Student", backref="transfer_requests")
+    instructor = relationship("User", foreign_keys=[instructor_id])
 
 class AbsenceReport(Base):
     __tablename__ = "absence_reports"
@@ -352,8 +354,9 @@ class AbsenceReport(Base):
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    instructor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
-    day_of_week = Column(String)
+    absence_date = Column(String)
     reason = Column(Text)
     report_info = Column(Text)
     
@@ -363,3 +366,4 @@ class AbsenceReport(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     student = relationship("Student", backref="absence_reports")
+    instructor = relationship("User", foreign_keys=[instructor_id])
