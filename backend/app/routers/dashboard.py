@@ -21,7 +21,7 @@ router = APIRouter()
 
 def get_adjusted_duration(base_duration: float, book_level: str, student_dev: Optional[float]) -> float:
     if not base_duration or not student_dev or not book_level:
-        return float(base_duration or 0.0)
+        return base_duration or 0.0
 
     level_map = {
         "基礎徹底": 50,
@@ -37,7 +37,7 @@ def get_adjusted_duration(base_duration: float, book_level: str, student_dev: Op
             break
             
     if target_dev is None:
-        return float(base_duration)
+        return base_duration
 
     diff = target_dev - student_dev
     adjusted_time = base_duration + base_duration * diff * 0.025
@@ -249,16 +249,16 @@ def get_subject_chart(student_id: int, session: Session = Depends(get_db)):
         if subj not in subject_stats:
             subject_stats[subj] = {"planned": 0.0, "completed": 0.0, "ratios": []}
 
-        duration = item.duration
-        book_level = item.level
+        duration = getattr(item, "duration", None)
+        book_level = getattr(item, "level", None) or ""
         if (duration is None or duration <= 0) and item.subject and item.book_name:
             master_book = master_map.get((item.subject, item.book_name))
             if master_book:
-                duration = master_book.duration
+                duration = getattr(master_book, "duration", None)
                 if not book_level:
-                    book_level = master_book.level
+                    book_level = getattr(master_book, "level", None) or ""
                     
-        duration = float(duration or 0)
+        duration = float(duration or 0) 
         
         adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
 
@@ -394,16 +394,16 @@ def get_study_time_summary(
         student_dev = getattr(student, "deviation_value", None)
 
         for item in my_progress:
-            duration = item.duration
-            book_level = item.level
+            duration = getattr(item, "duration", None) or 0
+            book_level = getattr(item, "level", None) or ""
             
             # マスターデータからの補完
             if (duration is None or duration <= 0) and item.subject and item.book_name:
                 master_book = master_map.get((item.subject, item.book_name))
                 if master_book:
-                    duration = master_book.duration
+                    duration = getattr(master_book, "duration", None) or 0
                     if not book_level:
-                        book_level = master_book.level
+                        book_level = getattr(master_book, "level", None) or ""
             
             duration = float(duration or 0.0)
             

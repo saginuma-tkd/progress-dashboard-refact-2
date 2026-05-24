@@ -1,24 +1,35 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Date, UniqueConstraint, Text, DateTime, LargeBinary, JSON, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 from app.db.database import Base
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from typing import Optional, Any
 
 class Tenant(Base):
     __tablename__ = "tenants"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+
+class School(Base):
+    __tablename__ = "schools"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    
+    __table_args__ = (UniqueConstraint('tenant_id', 'name', name='_tenant_school_name_uc'),)
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, nullable=False)
-    password = Column(String, nullable=False)
-    role = Column(String, nullable=False, default="user")
-    school = Column(String)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)  # ← 追加
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False, default="user")
+    school: Mapped[Optional[str]] = mapped_column(String)
+    tenant_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tenants.id"), nullable=True) 
+    school_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("schools.id", ondelete="SET NULL"), nullable=True)
 
     student_instructors = relationship("StudentInstructor", back_populates="user")
     student_profile = relationship("Student", back_populates="user", uselist=False)
@@ -26,17 +37,18 @@ class User(Base):
 class Student(Base):
     __tablename__ = "students"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # ログインユーザーとの紐付け
-    name = Column(String, nullable=False)
-    school = Column(String, nullable=False)
-    deviation_value = Column(Float)
-    target_level = Column(String)
-    grade = Column(String)
-    previous_school = Column(String)
-    memo = Column(Text, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True) # ログインユーザーとの紐付け
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    school: Mapped[str] = mapped_column(String, nullable=False)
+    school_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("schools.id", ondelete="SET NULL"), nullable=True)
+    deviation_value: Mapped[Optional[float]] = mapped_column(Float)
+    target_level: Mapped[Optional[str]] = mapped_column(String)
+    grade: Mapped[Optional[str]] = mapped_column(String)
+    previous_school: Mapped[Optional[str]] = mapped_column(String)
+    memo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    __table_args__ = (UniqueConstraint('school', 'name', name='_school_name_uc'),)
+    __table_args__ = (UniqueConstraint('school_id', 'name', name='_school_id_name_uc'),)
 
     user = relationship("User", back_populates="student_profile")
     instructors = relationship("StudentInstructor", back_populates="student", cascade="all, delete-orphan")
@@ -49,11 +61,11 @@ class Student(Base):
 class StudentInstructor(Base):
     __tablename__ = "student_instructors"
 
-    id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    is_main = Column(Integer, nullable=False, default=0)
-    memo = Column(Text, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    is_main: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    memo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (UniqueConstraint('student_id', 'user_id', name='_student_user_uc'),)
 
@@ -63,40 +75,38 @@ class StudentInstructor(Base):
 class MasterTextbook(Base):
     __tablename__ = "master_textbooks"
 
-    id = Column(Integer, primary_key=True, index=True)
-    level = Column(String, nullable=False)
-    subject = Column(String, nullable=False)
-    book_name = Column(String, nullable=False)
-    duration = Column(Float)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    level: Mapped[str] = mapped_column(String, nullable=False)
+    subject: Mapped[str] = mapped_column(String, nullable=False)
+    book_name: Mapped[str] = mapped_column(String, nullable=False)
+    duration: Mapped[Optional[float]] = mapped_column(Float)
 
     __table_args__ = (UniqueConstraint('subject', 'level', 'book_name', name='_subject_level_book_uc'),)
 
 class Progress(Base):
     __tablename__ = "progress"
 
-    id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    subject = Column(String, nullable=False)
-    level = Column(String, nullable=False)
-    book_name = Column(String, nullable=False)
-    duration = Column(Float)
-    is_planned = Column(Boolean)
-    is_done = Column(Boolean)
-    completed_units = Column(Integer, nullable=False, default=0)
-    total_units = Column(Integer, nullable=False, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    subject: Mapped[str] = mapped_column(String, nullable=False)
+    level: Mapped[str] = mapped_column(String, nullable=False)
+    book_name: Mapped[str] = mapped_column(String, nullable=False)
+    duration: Mapped[Optional[float]] = mapped_column(Float)
+    is_planned: Mapped[Optional[bool]] = mapped_column(Boolean)
+    is_done: Mapped[Optional[bool]] = mapped_column(Boolean)
+    completed_units: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_units: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     __table_args__ = (UniqueConstraint('student_id', 'subject', 'level', 'book_name', name='_student_prog_uc'),)
 
     student = relationship("Student", back_populates="progress")
 
-
-
 class BulkPreset(Base):
     __tablename__ = "bulk_presets"
 
-    id = Column(Integer, primary_key=True, index=True)
-    subject = Column(String, nullable=False)
-    preset_name = Column(String, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    subject: Mapped[str] = mapped_column(String, nullable=False)
+    preset_name: Mapped[str] = mapped_column(String, nullable=False)
 
     __table_args__ = (UniqueConstraint('subject', 'preset_name', name='_subject_preset_uc'),)
 
@@ -105,166 +115,166 @@ class BulkPreset(Base):
 class BulkPresetBook(Base):
     __tablename__ = "bulk_preset_books"
 
-    id = Column(Integer, primary_key=True, index=True)
-    preset_id = Column(Integer, ForeignKey("bulk_presets.id", ondelete="CASCADE"), nullable=False)
-    book_name = Column(String, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    preset_id: Mapped[int] = mapped_column(Integer, ForeignKey("bulk_presets.id", ondelete="CASCADE"), nullable=False)
+    book_name: Mapped[str] = mapped_column(String, nullable=False)
 
     preset = relationship("BulkPreset", back_populates="books")
 
 class PastExamResult(Base):
     __tablename__ = "past_exam_results"
 
-    id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    date = Column(String, nullable=False) # Existing is TEXT
-    university_name = Column(String, nullable=False)
-    faculty_name = Column(String)
-    exam_system = Column(String)
-    year = Column(Integer, nullable=False)
-    subject = Column(String, nullable=False)
-    time_required = Column(Integer)
-    total_time_allowed = Column(Integer)
-    correct_answers = Column(Integer)
-    total_questions = Column(Integer)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    date: Mapped[str] = mapped_column(String, nullable=False) # Existing is TEXT
+    university_name: Mapped[str] = mapped_column(String, nullable=False)
+    faculty_name: Mapped[Optional[str]] = mapped_column(String)
+    exam_system: Mapped[Optional[str]] = mapped_column(String)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    subject: Mapped[str] = mapped_column(String, nullable=False)
+    time_required: Mapped[Optional[int]] = mapped_column(Integer)
+    total_time_allowed: Mapped[Optional[int]] = mapped_column(Integer)
+    correct_answers: Mapped[Optional[int]] = mapped_column(Integer)
+    total_questions: Mapped[Optional[int]] = mapped_column(Integer)
 
     student = relationship("Student", back_populates="past_exam_results")
 
 class UniversityAcceptance(Base):
     __tablename__ = "university_acceptance"
 
-    id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    university_name = Column(String, nullable=False)
-    faculty_name = Column(String, nullable=False)
-    department_name = Column(String)
-    exam_system = Column(String)
-    result = Column(String) # '合格', '不合格', NULL
-    application_deadline = Column(String)
-    exam_date = Column(String)
-    announcement_date = Column(String)
-    procedure_deadline = Column(String)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    university_name: Mapped[str] = mapped_column(String, nullable=False)
+    faculty_name: Mapped[str] = mapped_column(String, nullable=False)
+    department_name: Mapped[Optional[str]] = mapped_column(String)
+    exam_system: Mapped[Optional[str]] = mapped_column(String)
+    result: Mapped[Optional[str]] = mapped_column(String) # '合格', '不合格', NULL
+    application_deadline: Mapped[Optional[str]] = mapped_column(String)
+    exam_date: Mapped[Optional[str]] = mapped_column(String)
+    announcement_date: Mapped[Optional[str]] = mapped_column(String)
+    procedure_deadline: Mapped[Optional[str]] = mapped_column(String)
 
     student = relationship("Student", back_populates="university_acceptances")
 
 class FeatureRequest(Base):
     __tablename__ = "feature_requests"
 
-    id = Column(Integer, primary_key=True, index=True)
-    reporter_username = Column(String, nullable=False)
-    report_date = Column(String, nullable=False)
-    title = Column(String, nullable=False)
-    description = Column(String, nullable=False)
-    status = Column(String, nullable=False, default='未対応')
-    resolution_message = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    reporter_username: Mapped[str] = mapped_column(String, nullable=False)
+    report_date: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default='未対応')
+    resolution_message: Mapped[Optional[str]] = mapped_column(Text)
 
 class BugReport(Base):
     __tablename__ = "bug_reports"
 
-    id = Column(Integer, primary_key=True, index=True)
-    reporter_username = Column(String, nullable=False)
-    report_date = Column(String, nullable=False)
-    title = Column(String, nullable=False)
-    description = Column(String, nullable=False)
-    status = Column(String, nullable=False, default='未対応')
-    resolution_message = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    reporter_username: Mapped[str] = mapped_column(String, nullable=False)
+    report_date: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default='未対応')
+    resolution_message: Mapped[Optional[str]] = mapped_column(Text)
 
 class Changelog(Base):
     __tablename__ = "changelog"
 
-    id = Column(Integer, primary_key=True, index=True)
-    version = Column(String, nullable=False)
-    release_date = Column(String, nullable=False)
-    title = Column(String, nullable=False)
-    description = Column(String, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    version: Mapped[str] = mapped_column(String, nullable=False)
+    release_date: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
 
 class MockExamResult(Base):
     __tablename__ = "mock_exam_results"
 
-    id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    result_type = Column(String, nullable=False)
-    mock_exam_name = Column(String, nullable=False)
-    mock_exam_format = Column(String, nullable=False)
-    grade = Column(String, nullable=False)
-    round = Column(String, nullable=False)
-    exam_date = Column(Date)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    result_type: Mapped[str] = mapped_column(String, nullable=False)
+    mock_exam_name: Mapped[str] = mapped_column(String, nullable=False)
+    mock_exam_format: Mapped[str] = mapped_column(String, nullable=False)
+    grade: Mapped[str] = mapped_column(String, nullable=False)
+    round: Mapped[str] = mapped_column(String, nullable=False)
+    exam_date: Mapped[Optional[date]] = mapped_column(Date)
     
-    subject_kokugo_desc = Column(Integer)
-    subject_math_desc = Column(Integer)
-    subject_english_desc = Column(Integer)
-    subject_rika1_desc = Column(Integer)
-    subject_rika2_desc = Column(Integer)
-    subject_shakai1_desc = Column(Integer)
-    subject_shakai2_desc = Column(Integer)
+    subject_kokugo_desc: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_math_desc: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_english_desc: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_rika1_desc: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_rika2_desc: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_shakai1_desc: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_shakai2_desc: Mapped[Optional[int]] = mapped_column(Integer)
     
-    subject_kokugo_mark = Column(Integer)
-    subject_math1a_mark = Column(Integer)
-    subject_math2bc_mark = Column(Integer)
-    subject_english_r_mark = Column(Integer)
-    subject_english_l_mark = Column(Integer)
-    subject_rika1_mark = Column(Integer)
-    subject_rika2_mark = Column(Integer)
-    subject_shakai1_mark = Column(Integer)
-    subject_shakai2_mark = Column(Integer)
-    subject_rika_kiso1_mark = Column(Integer)
-    subject_rika_kiso2_mark = Column(Integer)
-    subject_info_mark = Column(Integer)
+    subject_kokugo_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_math1a_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_math2bc_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_english_r_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_english_l_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_rika1_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_rika2_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_shakai1_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_shakai2_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_rika_kiso1_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_rika_kiso2_mark: Mapped[Optional[int]] = mapped_column(Integer)
+    subject_info_mark: Mapped[Optional[int]] = mapped_column(Integer)
 
     student = relationship("Student", back_populates="mock_exam_results")
 
 class EikenResult(Base):
     __tablename__ = "eiken_results" # add_eiken_table.py のテーブル名に合わせる
 
-    id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    grade = Column(String, nullable=False)
-    cse_score = Column(Integer)  # add_eiken_table.py の定義に合わせて 'score' ではなく 'cse_score' に
-    exam_date = Column(String, nullable=True)
-    result = Column(String)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    grade: Mapped[str] = mapped_column(String, nullable=False)
+    cse_score: Mapped[Optional[int]] = mapped_column(Integer)  # add_eiken_table.py の定義に合わせて 'score' ではなく 'cse_score' に
+    exam_date: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    result: Mapped[Optional[str]] = mapped_column(String)
 
     student = relationship("Student", back_populates="eiken_results")
 
 class RootTable(Base):
     __tablename__ = "root_tables"
 
-    id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String, nullable=False)
-    s3_key = Column(String, nullable=False)
-    file_size = Column(Integer)
-    original_filename = Column(String)
-    subject = Column(String)
-    level = Column(String)
-    academic_year = Column(Integer)
-    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    filename: Mapped[str] = mapped_column(String, nullable=False)
+    s3_key: Mapped[str] = mapped_column(String, nullable=False)
+    file_size: Mapped[Optional[int]] = mapped_column(Integer)
+    original_filename: Mapped[Optional[str]] = mapped_column(String)
+    subject: Mapped[Optional[str]] = mapped_column(String)
+    level: Mapped[Optional[str]] = mapped_column(String)
+    academic_year: Mapped[Optional[int]] = mapped_column(Integer)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 class SystemSetting(Base):
     __tablename__ = "system_settings"
-    id = Column(Integer, primary_key=True, index=True)
-    maintenance_mode = Column(Boolean, default=False)
-    announcement_enabled = Column(Boolean, default=False)
-    announcement_message = Column(String, default="")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    maintenance_mode: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    announcement_enabled: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    announcement_message: Mapped[Optional[str]] = mapped_column(String, default="")
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))  # 「誰が」操作したか
-    action = Column(String, index=True)                # 「何を」したか (例: "CREATE_USER", "UPDATE_ROLE", "LOGIN")
-    branch_id = Column(Integer, index=True)            # 「どの校舎の」データか（Adminの絞り込み用！）
-    details = Column(String)                           # 「詳細」 (例: "user_id 5 の権限を admin に変更")
-    timestamp = Column(DateTime, default=datetime.utcnow) # 「いつ」操作したか
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"))  # 「誰が」操作したか
+    action: Mapped[Optional[str]] = mapped_column(String, index=True)                # 「何を」したか (例: "CREATE_USER", "UPDATE_ROLE", "LOGIN")
+    branch_id: Mapped[Optional[int]] = mapped_column(Integer, index=True)            # 「どの校舎の」データか（Adminの絞り込み用！）
+    details: Mapped[Optional[str]] = mapped_column(String)                           # 「詳細」 (例: "user_id 5 の権限を admin に変更")
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)) # 「いつ」操作したか
 
 class StudentReportState(Base):
     __tablename__ = "student_report_states"
 
-    id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), unique=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), unique=True, index=True)
     
     # フロントエンドの JSON データをそのまま保存
-    report_data = Column(JSON, default=dict) 
+    report_data: Mapped[Optional[dict]] = mapped_column(JSON, default=dict) 
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
 # --- 教材管理用モデル（多対多対応版） ---
 
@@ -284,32 +294,34 @@ material_detail_association = Table(
 
 class SubjectTag(Base):
     __tablename__ = "subject_tags"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     # リレーション変更
     materials = relationship("TeachingMaterial", secondary=material_subject_association, back_populates="subjects")
 
 class DetailTag(Base):
     __tablename__ = "detail_tags"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     # リレーション変更
     materials = relationship("TeachingMaterial", secondary=material_detail_association, back_populates="detail_tags")
 
 class TeachingMaterial(Base):
     __tablename__ = "teaching_materials"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True, nullable=False)
-    s3_key = Column(String, nullable=False)
-    file_size = Column(Integer)
-    original_filename = Column(String)
-    internal_memo = Column(Text, nullable=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)  # ← 追加済み
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    title: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    s3_key: Mapped[str] = mapped_column(String, nullable=False)
+    file_size: Mapped[Optional[int]] = mapped_column(Integer)
+    original_filename: Mapped[Optional[str]] = mapped_column(String)
+    internal_memo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tenant_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tenants.id"), nullable=True)  # ← 追加済み
     # カテゴリ: 'material'（教材）| 'route_table'（ルート表）
-    category = Column(String, nullable=False, server_default="material")
+    category: Mapped[str] = mapped_column(String, nullable=False, server_default="material")
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    academic_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     # リレーション変更（複数形になっています）
     subjects = relationship("SubjectTag", secondary=material_subject_association, back_populates="materials")
@@ -318,12 +330,12 @@ class TeachingMaterial(Base):
 class Notification(Base):
     __tablename__ = "notifications"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False) # 誰宛の通知か
-    title = Column(String, nullable=False) # 例: "新規の振替申請"
-    message = Column(String, nullable=False) # 例: "佐藤先生、鈴木さんの振替申請が届きました"
-    is_read = Column(Boolean, default=False) # 既読フラグ（ここがFalseならポップアップを出す）
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False) # 誰宛の通知か
+    title: Mapped[str] = mapped_column(String, nullable=False) # 例: "新規の振替申請"
+    message: Mapped[str] = mapped_column(String, nullable=False) # 例: "佐藤先生、鈴木さんの振替申請が届きました"
+    is_read: Mapped[Optional[bool]] = mapped_column(Boolean, default=False) # 既読フラグ（ここがFalseならポップアップを出す）
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # リレーション（Userテーブルから notifications でアクセスできるようにするなら）
     user = relationship("User", backref="notifications")
@@ -331,39 +343,68 @@ class Notification(Base):
 class TransferRequest(Base):
     __tablename__ = "transfer_requests"
 
-    id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    instructor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, ForeignKey("tenants.id"), nullable=False)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    instructor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
-    original_date = Column(String)
-    candidate_dates = Column(Text)
-    reason = Column(Text)
+    original_date: Mapped[Optional[str]] = mapped_column(String)
+    candidate_dates: Mapped[Optional[str]] = mapped_column(Text)
+    reason: Mapped[Optional[str]] = mapped_column(Text)
     
-    status = Column(String, nullable=False, default="pending") # pending, approved, rejected
+    status: Mapped[str] = mapped_column(String, nullable=False, default="pending") # pending, approved, rejected
+
+    approved_date: Mapped[Optional[str]] = mapped_column(String, nullable=True)        # 決定した振替日
+    instructor_comment: Mapped[Optional[str]] = mapped_column(String, nullable=True)   # 先生からのメッセージ（備考）
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     student = relationship("Student", backref="transfer_requests")
     instructor = relationship("User", foreign_keys=[instructor_id])
 
+    @property
+    def student_name(self) -> str:
+        """リレーションを経由して生徒のユーザー名を自動で返すプロパティ"""
+        if self.student and self.student.user:
+            return self.student.user.username
+        return f"生徒ID: {self.student_id}"
+
+    @property
+    def instructor_name(self) -> str:
+        """リレーションを経由して担当講師のユーザー名を自動で返すプロパティ"""
+        if self.instructor:
+            return self.instructor.username
+        return "未指定"
+
 class AbsenceReport(Base):
     __tablename__ = "absence_reports"
 
-    id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    instructor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, ForeignKey("tenants.id"), nullable=False)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    instructor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
-    absence_date = Column(String)
-    reason = Column(Text)
-    report_info = Column(Text)
+    absence_date: Mapped[Optional[str]] = mapped_column(String)
+    reason: Mapped[Optional[str]] = mapped_column(Text)
+    report_info: Mapped[Optional[str]] = mapped_column(Text)
     
-    status = Column(String, nullable=False, default="acknowledged")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="acknowledged")
     
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     student = relationship("Student", backref="absence_reports")
     instructor = relationship("User", foreign_keys=[instructor_id])
+
+    @property
+    def student_name(self) -> str:
+        if self.student and self.student.user:
+            return self.student.user.username
+        return f"生徒ID: {self.student_id}"
+
+    @property
+    def instructor_name(self) -> str:
+        if self.instructor:
+            return self.instructor.username
+        return "未指定"

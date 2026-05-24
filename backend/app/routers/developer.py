@@ -1,16 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import os
 import subprocess
 import logging
 
 from app.db.database import get_db, SessionLocal
-from app.models.models import User, Student, SystemSetting
-from app.routers.deps import get_current_developer_user
+from app.models.models import User, Student, SystemSetting, MasterTextbook, School, Student, TeachingMaterial
+from app.routers.deps import get_current_developer_user, get_current_super_admin_user
 from app.routers.auth import get_password_hash
 from app.routers.audit import log_action
 
@@ -121,7 +122,7 @@ def get_or_create_settings(db: Session):
 @router.get("/settings")
 def get_system_settings(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_developer_user)
+    current_user: User = Depends(get_current_super_admin_user)
 ):
     settings = get_or_create_settings(db)
     return {
@@ -135,7 +136,7 @@ def get_system_settings(
 def update_system_settings(
     update_data: SystemSettingUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_developer_user)
+    current_user: User = Depends(get_current_super_admin_user)
 ):
     settings = get_or_create_settings(db)
     
@@ -162,10 +163,17 @@ class UserResponse(BaseModel):
 
 class UserRoleUpdate(BaseModel):
     role: str  # 'user', 'admin', 'developer' のいずれか
+    school_id: Optional[int] = None
 
 class DeveloperCreate(BaseModel):
     username: str
     password: str
+
+class UserCreateByDeveloper(BaseModel):
+    username: str
+    password: str
+    role: str
+    school_id: Optional[int] = None
 
 # ==========================================
 # APIエンドポイント (ファイルの下部に追加)
@@ -187,7 +195,7 @@ def update_user_role(
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_developer_user)
 ):
-    """特定のユーザーのロール（権限）を変更"""
+    """特定のユーザーのロール（権限）と所属校舎を変更"""
     # 自分自身の権限をうっかり下げてしまわないためのガード
     if user_id == current_user.id and role_data.role != "developer":
         raise HTTPException(
@@ -201,10 +209,51 @@ def update_user_role(
 
     # ロールの文字列を小文字に統一して保存
     user.role = role_data.role.lower()
-    db.commit()
-    logger.info(f"User {user_id} role updated to {user.role} by {current_user.username}")
     
-    return {"message": "ロールを更新しました。", "new_role": user.role}
+    # 🌟 追加: 校舎IDの更新 (developerの場合は強制的に未設定=Noneにする安全策)
+    if user.role == "developer":
+        user.school_id = None
+    else:
+        user.school_id = role_data.school_id
+
+    db.commit()
+    logger.info(f"User {user_id} role updated to {user.role}, school_id to {user.school_id} by {current_user.username}")
+    
+    return {"message": "ロールと所属校舎を更新しました。", "new_role": user.role, "new_school_id": user.school_id}
+
+@router.post("/users/")
+def create_user_by_developer(
+    user_in: UserCreateByDeveloper,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_developer_user)
+):
+    """新規ユーザーアカウント（Admin/User）の発行"""
+    
+    # 🌟 重複チェック
+    existing_user = db.query(User).filter(User.username == user_in.username).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="このユーザー名は既に登録されています"
+        )
+
+    # 🌟 新規ユーザーの組み立て
+    new_user = User(
+        username=user_in.username,
+        password=get_password_hash(user_in.password),
+        role=user_in.role.lower(),
+        tenant_id=current_user.tenant_id, # 作成した塾長と同じ塾（テナント）に自動所属
+        school_id=None if user_in.role.lower() == "developer" else user_in.school_id
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # 既存のロジックに合わせてロガーも仕込んでおきます
+    logger.info(f"New user {new_user.username} created with role {new_user.role} by {current_user.username}")
+    
+    return {"message": "ユーザーを作成しました", "id": new_user.id}
 
 @router.post("/accounts")
 def create_developer_account(
@@ -240,32 +289,24 @@ def create_developer_account(
     
     return {"message": f"開発者アカウント「{db_user.username}」を作成しました。"}
 
-@router.put("/users/{user_id}/role")
-def update_user_role(
-    user_id: int, 
-    role_data: UserRoleUpdate, 
-    db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_developer_user)
-):
-    # 自分自身の権限をうっかり下げてしまわないためのガード（既存）
-    if user_id == current_user.id and role_data.role != "developer":
-        raise HTTPException(status_code=400, detail="自分自身のDeveloper権限は外せません。")
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="ユーザーが見つかりません。")
 
-    user.role = role_data.role.lower()
-    db.commit()
+@router.get("/stats")
+def get_developer_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_developer_user)):
+    tenant_id = current_user.tenant_id
     
-    # 🌟🌟 ここに「監査ログの記録」を追加！ 🌟🌟
-    # （※ user.branch_id が無いエラーが出たら、ここは None にしてください）
-    log_action(
-        db=db,
-        user_id=current_user.id,
-        action="UPDATE_ROLE",
-        branch_id=getattr(user, 'branch_id', None), # userモデルにbranch_idがあれば取得、なければNone
-        details=f"ユーザーID:{user_id} ({user.username}) の権限を {user.role} に変更しました"
-    )
-    
-    return {"message": "ロールを更新しました。", "new_role": user.role}
+    # 1. アクティブ校舎数
+    total_branches = db.query(func.count(School.id)).filter(School.tenant_id == tenant_id).scalar()
+    # 2. 総生徒数
+    total_students = db.query(func.count(Student.id)).join(School).filter(School.tenant_id == tenant_id).scalar()
+    # 3. 総講師(User)数 ※AdminとUserを合わせた数
+    total_teachers = db.query(func.count(User.id)).filter(User.tenant_id == tenant_id, User.role.in_(["admin", "user"])).scalar()
+    # 4. 本部提供の公式マスタデータ数（教材＋ルート表）
+    total_materials = db.query(func.count(TeachingMaterial.id)).filter(TeachingMaterial.tenant_id == tenant_id).scalar()
+
+    return {
+        "total_branches": total_branches or 0,
+        "total_students": total_students or 0,
+        "total_teachers": total_teachers or 0,
+        "total_materials": total_materials or 0
+    }

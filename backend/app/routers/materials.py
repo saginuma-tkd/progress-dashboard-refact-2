@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, cast
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
@@ -52,7 +52,7 @@ def upload_material(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    if not file.filename.endswith('.pdf'):
+    if not file.filename or not file.filename.endswith('.pdf'):
         raise HTTPException(status_code=400, detail="PDFファイルのみアップロード可能です")
 
     file_uuid = str(uuid.uuid4())
@@ -61,7 +61,7 @@ def upload_material(
     s3_key = f"tenants/{tenant_prefix}/materials/{file_uuid}_{file.filename}"
     
     # Upload to S3
-    s3_client.upload_file(file.file, s3_key, file.content_type)
+    s3_client.upload_file(file.file, s3_key, file.content_type or "application/pdf")
     file_size = file.size if hasattr(file, 'size') and file.size else 0
 
     return crud_materials.create_material(
@@ -103,7 +103,7 @@ def update_material(
         # Delete old file from S3
         if existing_material.s3_key:
             try:
-                s3_client.delete_file(existing_material.s3_key)
+                s3_client.delete_file(cast(str, existing_material.s3_key))
             except Exception as e:
                 print(f"Failed to delete old file: {e}")
             
@@ -111,7 +111,7 @@ def update_material(
         tenant_id = get_tenant_id_for_user(db, current_user)
         tenant_prefix = str(tenant_id) if tenant_id else "shared"
         s3_key = f"tenants/{tenant_prefix}/materials/{file_uuid}_{file.filename}"
-        s3_client.upload_file(file.file, s3_key, file.content_type)
+        s3_client.upload_file(file.file, s3_key, file.content_type or "application/pdf")
         file_size = file.size if hasattr(file, 'size') and file.size else 0
         original_filename = file.filename
 
@@ -147,7 +147,7 @@ def download_material_pdf(material_id: int, db: Session = Depends(get_db), curre
     if not material or not material.s3_key:
         raise HTTPException(status_code=404, detail="File not found")
     
-    presigned_url = s3_client.generate_presigned_url(material.s3_key)
+    presigned_url = s3_client.generate_presigned_url(cast(str, material.s3_key))
     # ★ RedirectResponse を廃止し、URL を JSON で返す
     # → フロントが window.open() で直接開くことで S3 への CORS リクエストを回避
     return {"url": presigned_url}
@@ -160,7 +160,7 @@ def delete_material(material_id: int, db: Session = Depends(get_db), current_use
         
     if material.s3_key:
         try:
-            s3_client.delete_file(material.s3_key)
+            s3_client.delete_file(cast(str, material.s3_key))
         except Exception as e:
             print(f"Failed to delete file from S3: {e}")
             

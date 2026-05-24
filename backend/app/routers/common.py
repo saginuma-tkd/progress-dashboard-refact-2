@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.db.database import get_db
 from app.routers import deps
 from app.crud import crud_master
@@ -18,12 +18,12 @@ def read_subjects(
 @router.get("/textbooks", response_model=List[dict]) 
 # simplified response model or use schema
 def read_textbooks(
-    subject: str = None,
+    subject: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
     # This might be used by students too, to select textbooks
-    items = crud_master.get_master_textbooks(db, subject)
+    items = crud_master.get_master_textbooks(db, str(subject))
     return [
         {
             "id": i.id, 

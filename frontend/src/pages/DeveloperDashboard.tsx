@@ -3,7 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   ShieldAlert, Database, KeyRound, Wrench,
   Users, HardDrive, AlertTriangle, CheckCircle2,
-  UserCog, UserPlus, Megaphone, FileSearch, FileSpreadsheet, FileText, Settings
+  UserCog, FileSpreadsheet, BookOpen, GraduationCap,
+  Landmark
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -12,15 +13,11 @@ import api from '../lib/api';
 // --- 外部コンポーネントのインポート ---
 import PasswordResetForm from '../components/PasswordResetForm';
 import GradeUpdateManagement from '../components/developer/GradeUpdateManagement';
-import BackupManagement from '../components/admin/BackupManagement'; // DatabaseManagementの代わりに使用
 
 // --- 新規追加コンポーネントのインポート (Phase 2, 3, 4) ---
 import RoleManagement from '../components/developer/RoleManagement';
-import DeveloperAccountManagement from '../components/developer/DeveloperAccountManagement';
-import SystemSettingsManagement from '../components/developer/SystemSettingsManagement';
-import AuditLogViewer from '../components/developer/AuditLogViewer';
 import CsvImportManagement from '../components/developer/CsvImportManagement';
-import ChangelogManagement from '../components/admin/ChangelogManagement';
+import SchoolManagement from '../components/developer/SchoolManagement';
 
 interface SystemInfo {
   db_size_mb: number;
@@ -29,10 +26,13 @@ interface SystemInfo {
   total_students: number;
 }
 
+
+
 export default function DeveloperDashboard() {
   const { user } = useAuth();
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ total_branches: 0, total_students: 0, total_teachers: 0, total_materials: 0 });
 
   // システム情報の取得
   const fetchSystemInfo = async () => {
@@ -47,10 +47,9 @@ export default function DeveloperDashboard() {
   };
 
   useEffect(() => {
-    if (user?.role === 'developer') {
-      fetchSystemInfo();
-    }
-  }, [user]);
+    // 統計データの取得
+    api.get('/developer/stats').then(res => setStats(res.data)).catch(console.error);
+  }, []);
 
   // Developer以外はアクセス禁止
   if (user?.role !== 'developer') {
@@ -66,18 +65,25 @@ export default function DeveloperDashboard() {
   // --- 機能リスト定義 (全8機能) ---
   const features = [
     { 
+      title: "校舎・ブランチ管理", 
+      icon: Landmark, 
+      description: "校舎（ブランチ）の開設と一覧の確認", 
+      colorClass: "bg-teal-100 text-teal-600",
+      component: <SchoolManagement /> 
+    },
+    { 
+      title: "権限・ロール管理", 
+      icon: UserCog, 
+      description: "Admin/User権限の付与・剥奪、アカウント発行", 
+      colorClass: "bg-indigo-100 text-indigo-600",
+      component: <RoleManagement /> 
+    },
+    { 
       title: "学年一括更新", 
       icon: AlertTriangle, 
       description: "全生徒の学年を強制的に繰り上げ", 
       colorClass: "bg-orange-100 text-orange-600",
       component: <GradeUpdateManagement onUpdate={fetchSystemInfo} /> 
-    },
-    { 
-      title: "データベース管理", 
-      icon: HardDrive, 
-      description: "本番データのバックアップ取得", 
-      colorClass: "bg-blue-100 text-blue-600",
-      component: <BackupManagement /> 
     },
     { 
       title: "パスワードリセット", 
@@ -87,46 +93,11 @@ export default function DeveloperDashboard() {
       component: <div className="flex justify-center -mx-6 -mb-6 p-6 bg-gray-50/50"><PasswordResetForm /></div> 
     },
     { 
-      title: "権限・ロール管理", 
-      icon: UserCog, 
-      description: "Admin/Developer権限の付与と剥奪", 
-      colorClass: "bg-indigo-100 text-indigo-600",
-      component: <RoleManagement /> 
-    },
-    { 
-      title: "開発者アカウント", 
-      icon: UserPlus, 
-      description: "開発者アカウントの追加・停止", 
-      colorClass: "bg-sky-100 text-sky-600",
-      component: <DeveloperAccountManagement /> 
-    },
-    { 
-      title: "システム設定・通知", 
-      icon: Megaphone, 
-      description: "メンテナンスモードとお知らせバナー", 
-      colorClass: "bg-amber-100 text-amber-600",
-      component: <SystemSettingsManagement /> 
-    },
-    // { 
-    //   title: "監査ログ閲覧", 
-    //   icon: FileSearch, 
-    //   description: "システム内の操作・変更履歴の追跡", 
-    //   colorClass: "bg-slate-200 text-slate-700",
-    //   component: <AuditLogViewer /> 
-    // },
-    { 
       title: "CSV一括インポート", 
       icon: FileSpreadsheet, 
       description: "生徒データや模試成績の一括登録", 
       colorClass: "bg-emerald-100 text-emerald-600",
       component: <CsvImportManagement /> 
-    },
-    { 
-      title: "リリースノート更新",
-      icon: FileText, 
-      description: "更新履歴の追加・編集", 
-      colorClass: "bg-pink-100 text-pink-600", 
-      component: <ChangelogManagement /> 
     },
   ];
 
@@ -139,54 +110,39 @@ export default function DeveloperDashboard() {
         </h2>
       </div>
 
-      {/* システムステータス (メトリクス) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-              <Database className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">DBサイズ</p>
-              <h3 className="text-2xl font-bold">{loading ? '-' : `${sysInfo?.db_size_mb} MB`}</h3>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-green-100 text-green-600 rounded-lg">
-              <Users className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">総生徒数</p>
-              <h3 className="text-2xl font-bold">{loading ? '-' : sysInfo?.total_students}</h3>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-purple-100 text-purple-600 rounded-lg">
-              <KeyRound className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">登録アカウント</p>
-              <h3 className="text-2xl font-bold">{loading ? '-' : sysInfo?.active_users}</h3>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="p-3 bg-orange-100 text-orange-600 rounded-lg">
-              <HardDrive className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-medium">システム状態</p>
-              <h3 className="text-2xl font-bold text-green-600 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" /> 正常
-              </h3>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 校舎数 */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-teal-100 text-teal-600 rounded-lg"><Landmark className="w-6 h-6" /></div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">稼働校舎数</p>
+            <h3 className="text-2xl font-bold text-gray-900">{stats.total_branches} <span className="text-sm font-normal text-gray-500">校</span></h3>
+          </div>
+        </div>
+        {/* 総生徒数 */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-blue-100 text-blue-600 rounded-lg"><GraduationCap className="w-6 h-6" /></div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">総生徒数</p>
+            <h3 className="text-2xl font-bold text-gray-900">{stats.total_students} <span className="text-sm font-normal text-gray-500">名</span></h3>
+          </div>
+        </div>
+        {/* 総講師数 */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg"><Users className="w-6 h-6" /></div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">在籍講師・スタッフ</p>
+            <h3 className="text-2xl font-bold text-gray-900">{stats.total_teachers} <span className="text-sm font-normal text-gray-500">名</span></h3>
+          </div>
+        </div>
+        {/* 公式マスタデータ数 */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-purple-100 text-purple-600 rounded-lg"><BookOpen className="w-6 h-6" /></div>
+          <div>
+            <p className="text-sm font-medium text-gray-500">公式教材・ルート表</p>
+            <h3 className="text-2xl font-bold text-gray-900">{stats.total_materials} <span className="text-sm font-normal text-gray-500">ファイル</span></h3>
+          </div>
+        </div>
       </div>
 
       {/* 機能メニュー (8項目なので 4列x2段 のグリッドに配置) */}

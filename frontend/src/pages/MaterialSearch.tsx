@@ -242,10 +242,10 @@ export default function MaterialSearch() {
             {/* ヘッダー */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                    <h2 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
                         <Files className="w-6 h-6" /> 教材・ルート表管理
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1">教材やルート表のPDFをアップロード・検索・閲覧できます</p>
+                    <p className="text-xs md:text-sm text-gray-500 mt-1">教材やルート表のPDFをアップロード・検索・閲覧できます</p>
                 </div>
                 <Button onClick={() => setShowUploadModal(true)} className="gap-2">
                     <Plus className="w-4 h-4" /> アップロード

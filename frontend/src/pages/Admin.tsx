@@ -34,10 +34,10 @@ export default function Admin() {
             title: "参考書マスタ管理", icon: BookOpen, description: "参考書データベースの管理", 
             colorClass: "bg-amber-100 text-amber-600", component: <TextbookManagement /> 
         },
-        { 
-            title: "ルート表管理", icon: Map, description: "学習ルート表（PDF）の管理", 
-            colorClass: "bg-purple-100 text-purple-600", component: <RouteTableManagement /> 
-        },
+        // { 
+        //     title: "ルート表管理", icon: Map, description: "学習ルート表（PDF）の管理", 
+        //     colorClass: "bg-purple-100 text-purple-600", component: <RouteTableManagement /> 
+        // },
         { 
             title: "教材・プリント管理", icon: Files, description: "PDF教材のアップロードとタグ管理", 
             colorClass: "bg-emerald-100 text-emerald-600", component: <TeachingMaterialManagement /> 
@@ -46,18 +46,14 @@ export default function Admin() {
             title: "プリセット管理", icon: Library, description: "一括登録用プリセットの作成", 
             colorClass: "bg-indigo-100 text-indigo-600", component: <PresetManagement /> 
         },
-        // { 
-        //     title: "リリースノート更新", icon: FileText, description: "更新履歴の追加・編集", 
-        //     colorClass: "bg-pink-100 text-pink-600", component: <ChangelogManagement /> 
-        // },
         { 
             title: "模試結果一覧", icon: BarChart2, description: "全生徒の模試結果データを閲覧", 
             colorClass: "bg-cyan-100 text-cyan-600", component: <MockExamList /> 
         },
-        { 
-            title: "監査ログ", icon: FileSearch, description: "進捗更新履歴の確認", 
-            colorClass: "bg-slate-200 text-slate-700", component: <AuditLogViewer />
-        },
+        // { 
+        //     title: "監査ログ", icon: FileSearch, description: "進捗更新履歴の確認", 
+        //     colorClass: "bg-slate-200 text-slate-700", component: <AuditLogViewer />
+        // },
         { 
             title: "予定・実績チェック", icon: ClockAlert, description: "学習時間・予定の違和感を検知", 
             colorClass: "bg-red-100 text-red-600", component: <StudyTimeVerification /> 
@@ -97,7 +93,7 @@ export default function Admin() {
                         </DialogTrigger>
                         
                         {/* ★注意: 管理者画面は表（テーブル）が多いので、max-w-4xl を維持しています */}
-                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle className="text-xl flex items-center gap-2">
                                     <feature.icon className="w-5 h-5" />

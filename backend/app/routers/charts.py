@@ -11,7 +11,7 @@ router = APIRouter()
 # --- ★修正: ご指定の偏差値連動ロジック ---
 def get_adjusted_duration(base_duration: float, book_level: str, student_dev: Optional[float]) -> float:
     if not base_duration or not student_dev or not book_level:
-        return float(base_duration or 0.0)
+        return base_duration or 0.0
 
     level_map = {
         "基礎徹底": 50,
@@ -26,7 +26,7 @@ def get_adjusted_duration(base_duration: float, book_level: str, student_dev: Op
             target_dev = val
             break
             
-    if target_dev is None: return float(base_duration)
+    if target_dev is None: return base_duration
 
     # (所要時間) = (マスタの所要時間) + (マスタの所要時間) * ((ルート数値) - (本人の偏差値)) * 0.025
     diff = target_dev - student_dev

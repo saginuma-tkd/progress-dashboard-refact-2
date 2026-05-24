@@ -22,12 +22,15 @@ class Settings(BaseSettings):
     FORM_API_KEY: str = os.getenv("FORM_API_KEY", "YOUR_SECRET_API_KEY")
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+    BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173", 
         "http://localhost:3000",
         "https://progress-dashboard-frontend.onrender.com"
     ]
 
+    # LINE Notify
+    LINE_CHANNEL_ACCESS: str = ""
+    LINE_GROUP_ID: str = ""
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:

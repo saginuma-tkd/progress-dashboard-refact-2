@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.models import MasterTextbook
 from app.schemas.schemas import MasterTextbookCreate
-from typing import List
+from typing import List, Optional
 
 def get_all_subjects(db: Session) -> List[str]:
     results = db.query(MasterTextbook.subject).distinct().all()
@@ -17,7 +17,7 @@ def get_all_subjects(db: Session) -> List[str]:
     )
     return sorted_subjects
 
-def get_master_textbooks(db: Session, subject: str = None) -> List[MasterTextbook]:
+def get_master_textbooks(db: Session, subject: Optional[str] = None) -> List[MasterTextbook]:
     query = db.query(MasterTextbook)
     if subject:
         query = query.filter(MasterTextbook.subject == subject)

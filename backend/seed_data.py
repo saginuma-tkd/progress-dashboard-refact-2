@@ -8,51 +8,79 @@ from app.core.security import get_password_hash
 def seed_demo_data():
     db = SessionLocal()
     try:
-        # 1. データの作成開始
         print("Starting demo data creation...")
 
         # ==========================================
-        # 1.5. テナント (Tenant) を作成
+        # 1. テナント (Tenant) と 校舎 (School) を作成
         # ==========================================
-        print("Creating tenant data...")
-        tenant_names = ["渋谷校", "新宿校", "開発本部"]
-        for t_name in tenant_names:
-            if not db.query(models.Tenant).filter(models.Tenant.name == t_name).first():
-                db.add(models.Tenant(name=t_name))
-        db.commit()
+        print("Creating tenant and school data...")
+        
+        # 大元のテナントを作成
+        tenant_name = "武田塾"
+        tenant = db.query(models.Tenant).filter(models.Tenant.name == tenant_name).first()
+        if not tenant:
+            tenant = models.Tenant(name=tenant_name)
+            db.add(tenant)
+            db.commit()
+            db.refresh(tenant)
+
+        # テナントの配下に校舎を作成
+        school_names = ["渋谷校", "新宿校"]
+        schools = {}
+        for s_name in school_names:
+            school = db.query(models.School).filter(
+                models.School.name == s_name, 
+                models.School.tenant_id == tenant.id
+            ).first()
+            
+            if not school:
+                school = models.School(name=s_name, tenant_id=tenant.id)
+                db.add(school)
+                db.commit()
+                db.refresh(school)
+            schools[s_name] = school
 
         # ==========================================
         # 2. 汎用モック講師（User）を作成
         # ==========================================
         print("Creating instructor data...")
         instructors = [
-            {"username": "開発者", "role": "developer", "school": "開発本部"},
-            {"username": "admin_shibuya", "role": "admin", "school": "渋谷校"},
-            {"username": "inst_shibuya_1", "role": "user", "school": "渋谷校"},
-            {"username": "inst_shinjuku_1", "role": "user", "school": "新宿校"},
+            # 開発者(塾長)は校舎に縛られないので school_name は None
+            {"username": "開発者", "role": "developer", "school_name": None},
+            {"username": "admin_shibuya", "role": "admin", "school_name": "渋谷校"},
+            {"username": "inst_shibuya_1", "role": "user", "school_name": "渋谷校"},
+            {"username": "inst_shinjuku_1", "role": "user", "school_name": "新宿校"},
         ]
         
         created_instructors = []
         for inst_data in instructors:
             inst = db.query(models.User).filter(models.User.username == inst_data["username"]).first()
             if not inst:
+                # 所属する校舎オブジェクトを取得（なければNone）
+                school_obj = schools.get(inst_data["school_name"]) if inst_data["school_name"] else None
+                
                 inst = models.User(
                     username=inst_data["username"], 
                     password=get_password_hash("password123"), 
                     role=inst_data["role"], 
-                    school=inst_data["school"]
+                    school=inst_data["school_name"] or "", # 古い文字列カラム用（残っている場合のエラー回避）
+                    tenant_id=tenant.id,
+                    school_id=school_obj.id if school_obj else None # 新しいリレーションカラム
                 )
                 db.add(inst)
                 db.flush()
             created_instructors.append(inst)
+
+        # システム管理者 (super_admin) の作成
         super_admin_email = "superadmin@example.com"
         existing_super_admin = db.query(models.User).filter(models.User.username == super_admin_email).first()
         if not existing_super_admin:
             super_admin = models.User(
-                username=super_admin_email,                   # 👈 email ではなく username
-                password=get_password_hash("superadmin123"),  # 👈 hashed_password ではなく password
+                username=super_admin_email,
+                password=get_password_hash("superadmin123"),
                 role="super_admin",
-                tenant_id=None
+                tenant_id=None,
+                school_id=None
             )
             db.add(super_admin)
         db.commit()
@@ -69,15 +97,23 @@ def seed_demo_data():
             {"name": "新宿校生徒2", "school": "新宿校", "grade": "既卒", "deviation_value": 58.0, "target_level": "志望校B", "previous_school": "出身校E"},
         ]
 
+        main_inst_idx = None
+
         for s_data in students_data:
             student = db.query(models.Student).filter(models.Student.name == s_data["name"]).first()
+            school_obj = schools.get(s_data["school"])
+
             if not student:
-                student = models.Student(**s_data)
+                # **s_data で展開しつつ、新しい school_id を追加で指定
+                student = models.Student(
+                    **s_data,
+                    school_id=school_obj.id if school_obj else None
+                )
                 db.add(student)
                 db.flush() # ID取得のため
                 
                 # 講師の紐づけ (渋谷校なら inst_shibuya_1, 新宿校なら inst_shinjuku_1)
-                main_inst_idx = 1 if student.school == "渋谷校" else 2
+                main_inst_idx = 2 if student.school == "渋谷校" else 3
                 db.add(models.StudentInstructor(
                     student_id=student.id,
                     user_id=created_instructors[main_inst_idx].id,
@@ -91,7 +127,9 @@ def seed_demo_data():
                     username=s_data["name"],
                     password=get_password_hash("password123"),
                     role="student",
-                    school=s_data["school"]
+                    school=s_data["school"],
+                    tenant_id=tenant.id,
+                    school_id=school_obj.id if school_obj else None
                 )
                 db.add(user_student)
                 db.flush()
@@ -99,17 +137,13 @@ def seed_demo_data():
             # 生徒データにUser IDを紐付け
             student.user_id = user_student.id
 
-            # テナントIDの取得
-            tenant = db.query(models.Tenant).filter(models.Tenant.name == s_data["school"]).first()
-            tenant_id = tenant.id if tenant else 1
-
             # ダミーの振替申請データ (pending)
             existing_transfer = db.query(models.TransferRequest).filter(models.TransferRequest.student_id == student.id).first()
             if not existing_transfer:
                 db.add(models.TransferRequest(
-                    tenant_id=tenant_id,
+                    tenant_id=tenant.id,
                     student_id=student.id,
-                    instructor_id=created_instructors[main_inst_idx].id, # 👈 追加
+                    instructor_id=created_instructors[main_inst_idx].id,
                     original_date="2026-06-01",
                     candidate_dates="2026-06-03, 2026-06-04",
                     reason="学校の行事のため",
@@ -120,10 +154,10 @@ def seed_demo_data():
             existing_absence = db.query(models.AbsenceReport).filter(models.AbsenceReport.student_id == student.id).first()
             if not existing_absence:
                 db.add(models.AbsenceReport(
-                    tenant_id=tenant_id,
+                    tenant_id=tenant.id,
                     student_id=student.id,
-                    instructor_id=created_instructors[main_inst_idx].id, # 👈 追加
-                    absence_date="2026-06-05",                           # 👈 day_of_week を absence_date に変更
+                    instructor_id=created_instructors[main_inst_idx].id,
+                    absence_date="2026-06-05",
                     reason="体調不良のため",
                     report_info="次回補講を希望します",
                     status="pending"
@@ -135,8 +169,6 @@ def seed_demo_data():
         # 4. 汎用モック参考書マスタ (MasterTextbook) を作成
         # ==========================================
         print("Creating master textbook data...")
-        
-        # ⚠️ "1ヶ月" などの文字列を 1.0 などの数字(Float)に変更！
         textbooks_data = [
             {"subject": "英語", "level": "基礎", "book_name": "英語参考書1", "duration": 100},
             {"subject": "英語", "level": "標準", "book_name": "英語参考書2", "duration": 200},
@@ -157,21 +189,9 @@ def seed_demo_data():
         # ==========================================
         print("Creating preset data...")
         presets_data = [
-            {
-                "preset_name": "英語ルート1（基礎）",
-                "subject": "英語",
-                "books": ["英語参考書1", "英語参考書2"]
-            },
-            {
-                "preset_name": "英語ルート2（発展）",
-                "subject": "英語",
-                "books": ["英語参考書2", "英語参考書3"]
-            },
-            {
-                "preset_name": "数学ルート1",
-                "subject": "数学",
-                "books": ["数学参考書1", "数学参考書2"]
-            }
+            {"preset_name": "英語ルート1（基礎）", "subject": "英語", "books": ["英語参考書1", "英語参考書2"]},
+            {"preset_name": "英語ルート2（発展）", "subject": "英語", "books": ["英語参考書2", "英語参考書3"]},
+            {"preset_name": "数学ルート1", "subject": "数学", "books": ["数学参考書1", "数学参考書2"]}
         ]
 
         for p_data in presets_data:
@@ -186,7 +206,7 @@ def seed_demo_data():
                     subject=p_data["subject"]
                 )
                 db.add(new_preset)
-                db.flush() # IDを取得するためにflush
+                db.flush() 
 
                 for book_name in p_data["books"]:
                     db.add(models.BulkPresetBook(

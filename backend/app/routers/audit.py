@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
-from datetime import datetime
+from typing import List, Optional
+from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from app.db.database import get_db
@@ -27,7 +27,7 @@ class AuditLogResponse(BaseModel):
 # ==========================================
 # 2. ログを記録する便利関数 (他のAPIから呼び出す用)
 # ==========================================
-def log_action(db: Session, user_id: int, action: str, branch_id: int = None, details: str = ""):
+def log_action(db: Session, user_id: int, action: str, branch_id: Optional[int] = None, details: str = ""):
     """
     他のAPIエンドポイントの中で `log_action(db, user.id, "LOGIN", user.branch_id, "ログイン成功")` 
     のように呼び出して使います。
@@ -37,7 +37,7 @@ def log_action(db: Session, user_id: int, action: str, branch_id: int = None, de
         action=action,
         branch_id=branch_id,
         details=details,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
     db.add(new_log)
     db.commit()

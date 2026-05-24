@@ -21,6 +21,8 @@ router = APIRouter()
 # --- Pydantic Schema ---
 class ReportRequest(BaseModel):
     chart_image: Optional[str] = None
+    teacher_comment: Optional[str] = None
+    next_action: Optional[str] = None
 class IntegratedReportRequest(BaseModel):
     sections: List[str]  # ["dashboard", "calendar", "mock_exams", "past_exams"]
     chart_images: Dict[str, Optional[str]] = {} # {"dashboard": "base64...", "past_exams": "base64..."}
@@ -124,8 +126,8 @@ def generate_past_exam_report(
         "date_str": datetime.now().strftime("%Y年%m月%d日"),
         "items": formatted_items,
         "chart_image": request.chart_image,
-        "teacher_comment": req.teacher_comment,
-        "next_action": req.next_action
+        "teacher_comment": request.teacher_comment,
+        "next_action": request.next_action
     }
 
     pdf_buffer = create_pdf_from_template("past_exam_report.html", context)
@@ -268,7 +270,7 @@ def generate_integrated_report(
                         pct = round((completed / total) * 100)
                         if (item.duration or 0) > 0:
                              ratio = min(1.0, completed / total)
-                             total_study_time += ratio * item.duration
+                             total_study_time += ratio * (item.duration or 0.0)
                     
                     formatted_items.append({
                         "subject": item.subject or "-",
@@ -391,7 +393,7 @@ def get_report_data_json(
                     pct = round((completed / total) * 100)
                     if (item.duration or 0) > 0:
                          ratio = min(1.0, completed / total)
-                         total_study_time += ratio * item.duration
+                         total_study_time += ratio * (item.duration or 0.0)
                 
                 formatted_items.append({
                     "subject": item.subject or "-",

@@ -62,8 +62,6 @@ class MasterTextbookBase(BaseModel):
     book_name: str
     duration: Optional[float] = None
 
-class MasterTextbookCreate(MasterTextbookBase):
-    pass
 
 class MasterTextbook(MasterTextbookBase):
     id: int
@@ -314,14 +312,20 @@ class TransferRequestCreate(TransferRequestBase):
 
 class TransferRequestUpdate(BaseModel):
     status: str
+    approved_date: Optional[str] = None      
+    instructor_comment: Optional[str] = None  
 
 class TransferRequestResponse(TransferRequestBase):
     id: int
     tenant_id: int
     student_id: int
+    student_name: Optional[str] = None
+    instructor_name: Optional[str] = None
     status: str
     created_at: datetime
     updated_at: datetime
+    approved_date: Optional[str] = None      
+    instructor_comment: Optional[str] = None  
 
     class Config:
         from_attributes = True
@@ -343,6 +347,8 @@ class AbsenceReportResponse(AbsenceReportBase):
     id: int
     tenant_id: int
     student_id: int
+    student_name: Optional[str] = None
+    instructor_name: Optional[str] = None
     status: str
     created_at: datetime
     updated_at: datetime

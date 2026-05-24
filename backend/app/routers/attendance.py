@@ -75,7 +75,7 @@ async def get_transfers(
         dt_jst = parse_gas_date(t.timestamp)
         if dt_jst and not (start_dt <= dt_jst < end_dt): continue
 
-        orig_dt_jst = parse_gas_date(t.original_date)
+        orig_dt_jst = parse_gas_date(t.original_date) if t.original_date else None
         orig_date_str = orig_dt_jst.strftime("%Y/%m/%d") if orig_dt_jst else t.original_date
 
         row_dict = {

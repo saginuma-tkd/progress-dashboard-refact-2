@@ -25,6 +25,9 @@ import TransferRequestPage from './pages/student/TransferRequestPage';
 import AbsenceReportPage from './pages/student/AbsenceReportPage';
 import ApplicationReviewPage from './pages/admin/ApplicationReviewPage';
 import SystemAdminDashboard from './pages/admin/SystemAdminDashboard';
+import DbViewerPage from './pages/super_admin/DBViewerPage';
+import AdminManagementPage from './pages/super_admin/AdminManagementPage';
+import MaintenanceManualPage from './pages/super_admin/MaintenanceManualPage';
 
 // メンテナンスモードのガードコンポーネント
 const MaintenanceGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -100,7 +103,7 @@ const App: React.FC = () => {
 
                   {/* 講師・管理者用ページ */}
                   <Route path="applications-review" element={
-                    <ProtectedRoute roles={['admin', 'developer', 'instructor']}>
+                    <ProtectedRoute roles={['admin', 'developer', 'user']}>
                       <ApplicationReviewPage />
                     </ProtectedRoute>
                   } />
@@ -125,6 +128,9 @@ const App: React.FC = () => {
                       <SystemAdminDashboard />
                     </ProtectedRoute>
                   } />
+                  <Route path="/system_admin/db" element={<DbViewerPage />} />
+                  <Route path="/system_admin/admins" element={<AdminManagementPage />} />
+                  <Route path="/system_admin/manual" element={<MaintenanceManualPage />} />
                 </Route>
               </Routes>
             </MaintenanceGuard>

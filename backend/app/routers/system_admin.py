@@ -2,12 +2,13 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 
 from app.db.database import get_db
-from app.models.models import Tenant, User
+from app.models.models import Tenant, User, SystemSetting, TeachingMaterial
 from app.schemas.schemas import TenantCreateWithAdmin, TenantOut
-from app.routers.deps import get_current_super_admin
+from app.routers.deps import get_current_super_admin, get_current_super_admin_user
 from app.core.security import get_password_hash
 
 router = APIRouter(
@@ -51,3 +52,22 @@ def create_tenant_and_admin(tenant_in: TenantCreateWithAdmin, db: Session = Depe
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"テナントの作成に失敗しました: {str(e)}")
+
+@router.get("/stats")
+def get_system_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_super_admin_user)):
+    # 1. 契約テナント数
+    total_tenants = db.query(func.count(Tenant.id)).scalar()
+    # 2. 全システムの総ユーザー数 (生徒は除く、ログインできる全アカウント)
+    total_users = db.query(func.count(User.id)).scalar()
+    # 3. 全システムの総ファイル数 (S3に上がっている教材)
+    total_files = db.query(func.count(TeachingMaterial.id)).scalar()
+    # 4. 稼働ステータス
+    settings = db.query(SystemSetting).filter(SystemSetting.id == 1).first()
+    maintenance_mode = settings.maintenance_mode if settings else False
+
+    return {
+        "total_tenants": total_tenants or 0,
+        "total_users": total_users or 0,
+        "total_files": total_files or 0,
+        "maintenance_mode": maintenance_mode
+    }

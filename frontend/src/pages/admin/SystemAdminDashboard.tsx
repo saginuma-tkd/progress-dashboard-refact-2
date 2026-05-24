@@ -59,7 +59,7 @@ const SystemAdminDashboard: React.FC = () => {
 
     return (
         <div className="p-6 max-w-6xl mx-auto space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">システム管理 (SaaS Control)</h1>
+            <h1 className="text-xl md:text-3xl font-bold tracking-tight">システム管理 (SaaS Control)</h1>
 
             <div className="grid md:grid-cols-2 gap-6">
                 {/* テナント作成フォーム */}

@@ -10,7 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export default function ChangelogManagement() {
     const { user } = useAuth();
-    const isDeveloper = user?.role === 'developer';
+    const isSuperAdmin = user?.role === 'super_admin';
     const [title, setTitle] = useState("");
     const [desc, setDesc] = useState("");
     const [version, setVersion] = useState("");
@@ -104,7 +104,7 @@ export default function ChangelogManagement() {
 
     return (
         <div className="space-y-8">
-            {isDeveloper ? (
+            {isSuperAdmin ? (
                 <div className={`p-4 rounded-lg border transition-colors ${isEditing ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
                     {/* === フォームエリア === */}
                     <div className={`p-4 rounded-lg border transition-colors ${isEditing ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
@@ -181,7 +181,7 @@ export default function ChangelogManagement() {
                 </div>
             ) : (
                 <div className="p-4 rounded-lg border bg-gray-50 text-sm text-gray-500">
-                    ※ リリースノートの公開・編集は開発者のみ可能です。
+                    ※ リリースノートの公開・編集はシステム管理者のみ可能です。
                 </div>
             )}
             

@@ -6,7 +6,7 @@ from datetime import datetime
 from app.db.database import get_db
 from app.models.models import Changelog, BugReport, FeatureRequest, User
 from app.schemas.schemas import ChangelogCreate
-from app.routers.deps import get_current_user, get_current_admin_user
+from app.routers.deps import get_current_user, get_current_admin_user, get_current_super_admin_user
 
 router = APIRouter()
 
@@ -43,8 +43,6 @@ class ReportUpdate(BaseModel):
     resolution_message: Optional[str] = None
 
 # --- Endpoints ---
-
-# ... (更新履歴関連は変更なし) ...
 @router.get("/changelog", response_model=List[ChangelogResponse])
 def get_changelogs(session: Session = Depends(get_db)):
     return session.query(Changelog).order_by(Changelog.id.desc()).all()
@@ -117,10 +115,15 @@ def update_feature_request(row_id: int, update: ReportUpdate, session: Session =
     session.commit()
     return {"message": "updated"}
 
+# ==================================
+# 更新履歴の作成 (POST)
+# ==================================
 @router.post("/changelog")
 def create_changelog(
     data: ChangelogCreate,
-    session: Session = Depends(get_db)
+    session: Session = Depends(get_db),
+    # 🌟 スーパー管理者のみ実行可能に！
+    current_user: User = Depends(get_current_super_admin_user)
 ):
     # 日付がなければ今日の日付を入れる
     release_date = data.release_date
@@ -144,7 +147,13 @@ def create_changelog(
 # 更新履歴の編集 (PATCH)
 # ==================================
 @router.patch("/changelog/{log_id}")
-def update_changelog(log_id: int, data: dict = Body(...), session: Session = Depends(get_db)):
+def update_changelog(
+    log_id: int, 
+    data: dict = Body(...), 
+    session: Session = Depends(get_db),
+    # 🌟 スーパー管理者のみ実行可能に！
+    current_user: User = Depends(get_current_super_admin_user)
+):
     item = session.query(Changelog).filter(Changelog.id == log_id).first()
     if not item: 
         raise HTTPException(status_code=404, detail="Changelog not found")
@@ -163,7 +172,12 @@ def update_changelog(log_id: int, data: dict = Body(...), session: Session = Dep
 # 更新履歴の削除 (DELETE)
 # ==================================
 @router.delete("/changelog/{log_id}")
-def delete_changelog(log_id: int, session: Session = Depends(get_db)):
+def delete_changelog(
+    log_id: int, 
+    session: Session = Depends(get_db),
+    # 🌟 スーパー管理者のみ実行可能に！
+    current_user: User = Depends(get_current_super_admin_user)
+):
     item = session.query(Changelog).filter(Changelog.id == log_id).first()
     if not item: 
         raise HTTPException(status_code=404, detail="Changelog not found")

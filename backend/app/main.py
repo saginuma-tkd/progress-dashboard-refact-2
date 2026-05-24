@@ -1,10 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.models import models 
 from app.db.database import engine
 from app.core.scheduler import start_scheduler
-from app.routers import auth, external, students, admin, common, charts, dashboard, exams, routes, system, reports, backup, developer, system_status, audit, csv_import, student_report, materials, attendance, chat, applications, system_admin
+from app.routers import auth, external, students, admin, common, charts, dashboard, exams, routes, system, reports, backup, developer, system_status, audit, csv_import, student_report, materials, attendance, chat, applications, system_admin, schools
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -39,14 +39,15 @@ app.include_router(system.router, prefix=f"{settings.API_V1_STR}/system", tags=[
 app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["reports"])
 app.include_router(backup.router, prefix=f"{settings.API_V1_STR}/backup", tags=["backup"])
 app.include_router(developer.router, prefix=f"{settings.API_V1_STR}/developer", tags=["developer"])
-app.include_router(system_status.router, prefix=f"{settings.API_V1_STR}/system_status", tags={"system_status"})
-app.include_router(audit.router, prefix=f"{settings.API_V1_STR}/audit", tags={"audit"})
+app.include_router(system_status.router, prefix=f"{settings.API_V1_STR}/system_status", tags=["system_status"])
+app.include_router(audit.router, prefix=f"{settings.API_V1_STR}/audit", tags=["audit"])
 app.include_router(csv_import.router, prefix=f"{settings.API_V1_STR}/csv_import", tags=["csv_import"])
-app.include_router(student_report.router, prefix=f"{settings.API_V1_STR}/student_report", tags={"student_report"})
-app.include_router(materials.router, prefix=f"{settings.API_V1_STR}/materials", tags={"materials"})
-app.include_router(attendance.router, prefix=f"{settings.API_V1_STR}/attendance", tags={"attendance"})
-app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags={"chat"})
+app.include_router(student_report.router, prefix=f"{settings.API_V1_STR}/student_report", tags=["student_report"])
+app.include_router(materials.router, prefix=f"{settings.API_V1_STR}/materials", tags=["materials"])
+app.include_router(attendance.router, prefix=f"{settings.API_V1_STR}/attendance", tags=["attendance"])
+app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
 app.include_router(applications.router, prefix=f"{settings.API_V1_STR}/applications", tags=["applications"])
+app.include_router(schools.router, prefix=f"{settings.API_V1_STR}/schools", tags=["schools"])
 app.include_router(system_admin.router, prefix="/api/v1")
 from app.routers import fix_db
 app.include_router(fix_db.router, prefix=settings.API_V1_STR, tags=["fix"])

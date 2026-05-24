@@ -3,7 +3,7 @@ from app.models import models
 from app.routers import deps
 from app.routers.deps import get_tenant_id_for_user
 from app.models.models import User
-from typing import List
+from typing import List, Optional
 
 # --- タグ操作 ---
 def get_or_create_subject_tag(db: Session, name: str):
@@ -54,7 +54,7 @@ def _set_material_tags(db: Session, db_material: models.TeachingMaterial, subjec
     if detail_tag_ids is not None:
         db_material.detail_tags = db.query(models.DetailTag).filter(models.DetailTag.id.in_(detail_tag_ids)).all()
 
-def create_material(db: Session, title: str, s3_key: str, file_size: int, original_filename: str, current_user: User, internal_memo: str = None, subject_ids: List[int] = [], detail_tag_ids: List[int] = [], category: str = "material"):
+def create_material(db: Session, title: str, s3_key: str, file_size: int, original_filename: str, current_user: User, internal_memo: Optional[str] = None, subject_ids: List[int] = [], detail_tag_ids: List[int] = [], category: str = "material"):
     tenant_id = get_tenant_id_for_user(db, current_user)
     db_material = models.TeachingMaterial(
         title=title,
@@ -73,7 +73,7 @@ def create_material(db: Session, title: str, s3_key: str, file_size: int, origin
     return db_material
 
 # ★追加: 教材の更新機能
-def update_material(db: Session, material_id: int, title: str, current_user: User, s3_key: str = None, file_size: int = None, original_filename: str = None, internal_memo: str = None, subject_ids: List[int] = None, detail_tag_ids: List[int] = None):
+def update_material(db: Session, material_id: int, title: str, current_user: User, s3_key: Optional[str] = None, file_size: Optional[int] = None, original_filename: Optional[str] = None, internal_memo: Optional[str] = None, subject_ids: Optional[List[int]] = None, detail_tag_ids: Optional[List[int]] = None):
     db_material = deps.get_tenant_query(db, models.TeachingMaterial, current_user).filter(models.TeachingMaterial.id == material_id).first()
     if not db_material:
         return None
@@ -85,13 +85,13 @@ def update_material(db: Session, material_id: int, title: str, current_user: Use
         db_material.file_size = file_size
         db_material.original_filename = original_filename
         
-    _set_material_tags(db, db_material, subject_ids, detail_tag_ids)
+    _set_material_tags(db, db_material, subject_ids or [], detail_tag_ids or [])
     
     db.commit()
     db.refresh(db_material)
     return db_material
 
-def get_materials(db: Session, current_user: User, subject_id: int = None, detail_tag_id: int = None, search_query: str = None, category: str = None):
+def get_materials(db: Session, current_user: User, subject_id: Optional[int] = None, detail_tag_id: Optional[int] = None, search_query: Optional[str] = None, category: Optional[str] = None):
     query = deps.get_tenant_query(db, models.TeachingMaterial, current_user)
     
     # カテゴリフィルタ

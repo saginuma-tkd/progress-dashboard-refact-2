@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, cast
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from app.db.database import get_db
@@ -193,8 +193,8 @@ def read_users(
     admin: models.User = Depends(get_current_admin)
 ):
     query = db.query(models.User)
-    if current_user.role == 'admin':
-        query = query.filter(models.User.school == current_user.school)
+    if admin.role == 'admin':
+        query = query.filter(models.User.school == admin.school)
     return query.offset(skip).limit(limit).all()
 
 @router.get("/mock_exams")
@@ -295,7 +295,7 @@ def create_user(
 
     # 管理者ユーザーの校舎取得(ユーザーの校舎のみを表示。developerはどの校舎も表示可能)
     if current_user.role == "admin":
-        user_in.school = current_user.school
+        user_in.school = current_user.school or ""
 
     # ユーザー名重複チェック
     if db.query(models.User).filter(models.User.username == user_in.username).first():
@@ -320,7 +320,7 @@ def create_user(
     try:
         log_action(
             db=db,
-            user_id=current_user.id,
+            user_id=cast(int, current_user.id),
             action="CREATE_USER",
             branch_id=getattr(current_user, 'branch_id', None),
             details=f"新規ユーザー '{new_user.username}' (校舎: {new_user.school}) を作成しました"

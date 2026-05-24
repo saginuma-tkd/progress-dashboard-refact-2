@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import cast
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -66,7 +67,7 @@ def change_my_password(
     current_user: User = Depends(get_current_user) # 自分自身の情報を取得
 ):
     # まず、入力された「現在のパスワード」が本当に合っているかチェック
-    if not verify_password(data.current_password, current_user.password):
+    if not verify_password(data.current_password, cast(str, current_user.password)):
         raise HTTPException(status_code=400, detail="現在のパスワードが間違っています。")
         
     # 合っていれば新しいパスワードで上書き

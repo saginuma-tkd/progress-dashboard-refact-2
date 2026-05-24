@@ -1,31 +1,32 @@
 from fastapi import APIRouter, Depends
-from sqlmodel import Session, select
 import pandas as pd
 from typing import List, Any
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
-from backend.database import get_session
-from backend.models import PastExamResult, MockExamResult
+from app.db.database import get_db
+from app.models.models import PastExamResult, MockExamResult
 
 router = APIRouter()
 
 @router.get("/results/past-exams/{student_id}")
-def get_past_exam_results(student_id: int, session: Session = Depends(get_session)):
+def get_past_exam_results(student_id: int, session: Session = Depends(get_db)):
     """
     過去問演習データを全件取得 (そのままリストで返す)
     修正: created_at ではなく date (受験日) で降順ソート
     """
     statement = select(PastExamResult).where(PastExamResult.student_id == student_id).order_by(PastExamResult.date.desc())
-    results = session.exec(statement).all()
+    results = session.execute(statement).all()
     return results
 
 @router.get("/results/mock-exams/{student_id}")
-def get_mock_exam_results(student_id: int, session: Session = Depends(get_session)):
+def get_mock_exam_results(student_id: int, session: Session = Depends(get_db)):
     """
     模試データを取得し、Pandasで「縦持ち」に変換して返す
     例: {英語:80, 数学:70} -> [{科目:英語, 点数:80}, {科目:数学, 点数:70}]
     """
     statement = select(MockExamResult).where(MockExamResult.student_id == student_id).order_by(MockExamResult.exam_date.desc())
-    results = session.exec(statement).all()
+    results = session.execute(statement).all()
 
     if not results:
         return []
