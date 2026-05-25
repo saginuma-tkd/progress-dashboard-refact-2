@@ -23,14 +23,16 @@ def read_textbooks(
     current_user: User = Depends(deps.get_current_user)
 ):
     # This might be used by students too, to select textbooks
-    items = crud_master.get_master_textbooks(db, str(subject))
+    items = crud_master.get_master_textbooks(db, subject, current_user)
     return [
         {
             "id": i.id, 
-            "book_name": i.book_name,  # name -> book_name に変更
+            "book_name": i.book_name,  
             "level": i.level, 
             "subject": i.subject,
-            "duration": i.duration     # duration を追加
+            "duration": i.duration,     
+            "school_id": i.school_id,
+            "tenant_id": i.tenant_id
         } 
         for i in items
     ]

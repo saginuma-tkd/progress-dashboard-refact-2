@@ -14,6 +14,9 @@ from app.models.models import Progress, EikenResult, MasterTextbook, BulkPreset,
 from app.routers.auth import get_current_user
 from app.routers.deps import get_current_admin_user
 
+from app.crud import crud_master  # インポート追加
+from app.routers import deps      # インポート追加
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -92,8 +95,11 @@ def get_presets(session: Session = Depends(get_db)):
     return result
 
 @router.get("/books/master")
-def get_master_books(session: Session = Depends(get_db)):
-    return session.query(MasterTextbook).all()
+def get_master_books(
+    session: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)  # ← 追加
+):
+    return crud_master.get_master_textbooks(session, current_user=current_user)
 
 @router.post("/progress/batch")
 def add_progress_batch(data: ProgressCreate, session: Session = Depends(get_db)):
