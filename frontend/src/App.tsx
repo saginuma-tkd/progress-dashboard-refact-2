@@ -1,6 +1,7 @@
 import React from 'react';
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
@@ -56,6 +57,8 @@ const MaintenanceGuard: React.FC<{ children: React.ReactNode }> = ({ children })
   return <>{children}</>;
 };
 
+const queryClient = new QueryClient();
+
 // --- App コンポーネント本体 ---
 const App: React.FC = () => {
   useEffect(() => {
@@ -67,8 +70,9 @@ const App: React.FC = () => {
     }
   }, []);
   return (
-    <ConfirmProvider>
-      <Router>
+    <QueryClientProvider client={queryClient}>
+      <ConfirmProvider>
+        <Router>
         <AuthProvider>
           <SystemProvider> {/* 追加: システム設定のコンテキスト */}
 
@@ -138,8 +142,9 @@ const App: React.FC = () => {
             <Toaster />
           </SystemProvider>
         </AuthProvider>
-      </Router>
-    </ConfirmProvider>
+        </Router>
+      </ConfirmProvider>
+    </QueryClientProvider>
   );
 };
 

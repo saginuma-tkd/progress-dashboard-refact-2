@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -6,7 +7,12 @@ from app.db.database import engine
 from app.core.scheduler import start_scheduler
 from app.routers import auth, external, students, admin, common, charts, dashboard, exams, routes, system, reports, backup, developer, system_status, audit, csv_import, student_report, materials, attendance, chat, applications, system_admin, schools
 
-models.Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 起動時の処理
+    start_scheduler()
+    yield
+    # シャットダウン時の処理（必要に応じて）
 
 app = FastAPI(
     title="Progress Dashboard API",
@@ -14,6 +20,7 @@ app = FastAPI(
     version="2.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
+    lifespan=lifespan,
 )
 
 # Set all CORS enabled origins
@@ -56,7 +63,3 @@ app.include_router(fix_db.router, prefix=settings.API_V1_STR, tags=["fix"])
 @app.get("/")
 def root():
     return {"message": "Hello from Progress Dashboard API"}
-
-@app.on_event("startup")
-def on_startup():
-    start_scheduler()

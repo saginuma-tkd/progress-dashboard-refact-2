@@ -1,29 +1,35 @@
-// frontend/src/api/applications.ts (新しく作成して以下を貼り付け)
+// frontend/src/api/applications.ts
 
-import api from '../lib/api'; // 👈 axiosの設定ファイル（または lib/api.ts）を読み込みます
+import api from '../lib/api';
 
-// 振替申請の一覧取得
-export const getTransferRequests = async () => {
-  const res = await api.get('/applications/transfer');
+// 🌟 検索条件をすべて受け取れるように型を定義
+export interface FilterParams {
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  student_id?: string;
+  instructor_id?: string;
+}
+
+// 🌟 paramsを丸ごとバックエンドに送るように変更！
+export const getTransferRequests = async (params: FilterParams = {}) => {
+  const res = await api.get('/applications/transfer', { params });
   return res.data;
 };
 
-// 欠席報告の一覧取得
-export const getAbsenceReports = async () => {
-  const res = await api.get('/applications/absence');
+export const getAbsenceReports = async (params: FilterParams = {}) => {
+  const res = await api.get('/applications/absence', { params });
   return res.data;
 };
 
-// 🌟 振替申請のステータス更新（日付とコメントも一緒に送れるようにしています）
 export const updateTransferStatus = async (
-  id: number, 
+  id: number,
   data: { status: string; approved_date?: string; instructor_comment?: string }
 ) => {
   const res = await api.patch(`/applications/transfer/${id}/status`, data);
   return res.data;
 };
 
-// 欠席報告のステータス更新
 export const updateAbsenceStatus = async (id: number, status: string) => {
   const res = await api.patch(`/applications/absence/${id}/status`, { status });
   return res.data;

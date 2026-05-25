@@ -41,13 +41,12 @@ def create_transfer_request(db: Session, request: schemas.TransferRequestCreate,
     db.refresh(new_req)
     return new_req
 
-def get_transfer_requests(db: Session, current_user: models.User, student_id: Optional[int] = None):
+def get_transfer_requests(db: Session, current_user: models.User, student_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, status: Optional[str] = None, instructor_id: Optional[int] = None):
     if hasattr(current_user, 'tenant_id') and current_user.tenant_id:
         query = deps.get_tenant_query(db, models.TransferRequest, current_user)
     else:
         query = db.query(models.TransferRequest)
         
-    # 講師(user)の場合は、自分の担当生徒のみにクエリを絞り込む
     if current_user.role == "user":
         query = query.join(models.Student, models.TransferRequest.student_id == models.Student.id)\
                      .join(models.StudentInstructor, models.Student.id == models.StudentInstructor.student_id)\
@@ -56,7 +55,17 @@ def get_transfer_requests(db: Session, current_user: models.User, student_id: Op
     if student_id:
         query = query.filter(models.TransferRequest.student_id == student_id)
         
-    # 🌟 余計なループ処理は全削除し、プロパティを信じてそのまま返すだけ！
+    # 🌟 追加: 日付での絞り込み
+    if start_date:
+        query = query.filter(models.TransferRequest.original_date >= start_date)
+    if end_date:
+        query = query.filter(models.TransferRequest.original_date <= end_date)
+    
+    if status:
+        query = query.filter(models.TransferRequest.status == status)
+    if instructor_id:
+        query = query.filter(models.TransferRequest.instructor_id == instructor_id)
+        
     return query.order_by(models.TransferRequest.created_at.desc()).all()
 
 def update_transfer_status(db: Session, request_id: int, update_data: schemas.TransferRequestUpdate, current_user: models.User):
@@ -96,13 +105,12 @@ def create_absence_report(db: Session, request: schemas.AbsenceReportCreate, cur
     db.refresh(new_rep)
     return new_rep
 
-def get_absence_reports(db: Session, current_user: models.User, student_id: Optional[int] = None):
+def get_absence_reports(db: Session, current_user: models.User, student_id: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, status: Optional[str] = None, instructor_id: Optional[int] = None):
     if hasattr(current_user, 'tenant_id') and current_user.tenant_id:
         query = deps.get_tenant_query(db, models.AbsenceReport, current_user)
     else:
         query = db.query(models.AbsenceReport)
         
-    # 講師(user)の場合は、自分の担当生徒のみにクエリを絞り込む
     if current_user.role == "user":
         query = query.join(models.Student, models.AbsenceReport.student_id == models.Student.id)\
                      .join(models.StudentInstructor, models.Student.id == models.StudentInstructor.student_id)\
@@ -111,7 +119,17 @@ def get_absence_reports(db: Session, current_user: models.User, student_id: Opti
     if student_id:
         query = query.filter(models.AbsenceReport.student_id == student_id)
         
-    # 🌟 同様にそのまま返すだけ！
+    # 🌟 追加: 日付での絞り込み
+    if start_date:
+        query = query.filter(models.AbsenceReport.absence_date >= start_date)
+    if end_date:
+        query = query.filter(models.AbsenceReport.absence_date <= end_date)
+    
+    if status:
+        query = query.filter(models.AbsenceReport.status == status)
+    if instructor_id:
+        query = query.filter(models.AbsenceReport.instructor_id == instructor_id)
+        
     return query.order_by(models.AbsenceReport.created_at.desc()).all()
 
 def update_absence_status(db: Session, report_id: int, status: str, current_user: models.User):

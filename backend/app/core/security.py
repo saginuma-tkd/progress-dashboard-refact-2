@@ -1,6 +1,6 @@
 # backend/app/core/security.py
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import jwt
 from app.core.config import settings
@@ -31,20 +31,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         except Exception:
             pass # エラー時は下へ
 
-    # 2. Werkzeug標準のハッシュ方式、または平文（救済措置）の場合
+    # 2. Werkzeug標準のハッシュ方式の場合
     try:
         return check_password_hash(hashed_password, plain_password)
     except ValueError:
-        # 平文として直接比較
-        return plain_password == hashed_password
+        return False
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """アクセストークンを作成する"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)

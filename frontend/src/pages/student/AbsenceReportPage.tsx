@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 const AbsenceReportPage: React.FC = () => {
   const [studentName, setStudentName] = useState('');
@@ -18,19 +19,27 @@ const AbsenceReportPage: React.FC = () => {
     report_info: ''
   });
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. 自分の名前はローカルストレージ（ログイン情報）から直接取得する
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-          const userObj = JSON.parse(savedUser);
-          setStudentName(userObj.username);
+        // 🌟 トークンからログイン中のユーザー名（sub）を抽出
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            console.log("トークンデコード成功:", payload); // コンソールで中身が確認できます！
+
+            if (payload.sub) {
+              setStudentName(payload.sub); // subに入っているユーザー名をセット！
+            }
+          } catch (e) {
+            console.error("トークンの解読に失敗しました", e);
+          }
         }
 
-        // 2. 講師一覧は先ほど新しく作った専用APIから取得する
-        const instRes = await api.get('/students/instructors'); // ※もし common.py に書いた場合は /common/instructors にしてください
+        const instRes = await api.get('/students/instructors');
         setInstructors(instRes.data);
       } catch (err) {
         console.error("講師データの取得に失敗しました", err);
@@ -39,9 +48,15 @@ const AbsenceReportPage: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 🌟【修正点3】ボタンが押された時は、APIを叩かずにダイアログを開くだけにする
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+    setIsConfirmOpen(true); // ダイアログをパッと開く
+  };
+
+  // 🌟【修正点4】ダイアログで「送信する（OK）」が押された時に、実際にAPIを叩く関数
+  const handleConfirmSubmit = async () => {
     try {
       await api.post('/applications/absence', formData);
       setMessage({ text: '✅ 欠席連絡を送信しました。', type: 'success' });
@@ -71,11 +86,11 @@ const AbsenceReportPage: React.FC = () => {
             {/* 担当講師 */}
             <div className="space-y-2">
               <Label htmlFor="instructor_id">担当講師</Label>
-              <select 
-                id="instructor_id" 
-                className="w-full border rounded-md p-2" 
+              <select
+                id="instructor_id"
+                className="w-full border rounded-md p-2"
                 value={formData.instructor_id}
-                onChange={e => setFormData({...formData, instructor_id: e.target.value})}
+                onChange={e => setFormData({ ...formData, instructor_id: e.target.value })}
                 required
               >
                 <option value="">選択してください</option>
@@ -88,41 +103,84 @@ const AbsenceReportPage: React.FC = () => {
             {/* 欠席する特訓日 */}
             <div className="space-y-2">
               <Label htmlFor="absence_date">欠席する特訓日</Label>
-              <Input 
-                id="absence_date" 
-                type="date" 
+              <Input
+                id="absence_date"
+                type="date"
                 value={formData.absence_date}
-                onChange={e => setFormData({...formData, absence_date: e.target.value})}
-                required 
+                onChange={e => setFormData({ ...formData, absence_date: e.target.value })}
+                required
               />
             </div>
 
             {/* 欠席理由 */}
             <div className="space-y-2">
               <Label htmlFor="reason">欠席理由</Label>
-              <Textarea 
-                id="reason" 
+              <Textarea
+                id="reason"
                 placeholder="例: 体調不良のため"
                 value={formData.reason}
-                onChange={e => setFormData({...formData, reason: e.target.value})}
-                required 
+                onChange={e => setFormData({ ...formData, reason: e.target.value })}
+                required
               />
             </div>
 
             {/* レポート作成用の進捗 */}
             <div className="space-y-2">
               <Label htmlFor="report_info">レポート作成用の進捗（実施済みの範囲など）</Label>
-              <Textarea 
-                id="report_info" 
+              <Textarea
+                id="report_info"
                 placeholder="例: 英語ルート表の単語帳 100〜200番まで完了しました。"
                 value={formData.report_info}
-                onChange={e => setFormData({...formData, report_info: e.target.value})}
+                onChange={e => setFormData({ ...formData, report_info: e.target.value })}
                 rows={4}
               />
             </div>
 
             <Button type="submit" className="w-full">送信する</Button>
           </form>
+
+          {/* 🌟【修正点5】formタグの外（CardContentの中）に確認ダイアログを設置 */}
+          <ConfirmDialog
+            isOpen={isConfirmOpen}
+            title="送信内容の確認"
+            message={
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">以下の内容で欠席報告を送信します。よろしいですか？</p>
+
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-left space-y-2 text-sm text-gray-700">
+                  <div>
+                    <span className="font-medium text-gray-500 mr-2">生徒氏名:</span>
+                    {studentName}
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500 mr-2">担当講師:</span>
+                    {instructors.find(inst => inst.id === Number(formData.instructor_id))?.username || '未選択'} 先生
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500 mr-2">欠席特訓日:</span>
+                    {formData.absence_date}
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500 mr-2">欠席理由:</span>
+                    <span className="text-gray-900 font-medium">{formData.reason}</span>
+                  </div>
+                  {formData.report_info && (
+                    <div className="pt-1 border-t border-gray-200 mt-1">
+                      <span className="font-medium text-gray-500 block mb-0.5">実施済みの範囲:</span>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap bg-white p-2 rounded border border-gray-100">
+                        {formData.report_info}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            }
+            confirmText="送信する"
+            cancelText="キャンセル"
+            isDestructive={false}
+            onConfirm={handleConfirmSubmit}
+            onClose={() => setIsConfirmOpen(false)}
+          />
         </CardContent>
       </Card>
     </div>

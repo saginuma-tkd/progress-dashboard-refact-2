@@ -49,15 +49,21 @@ def create_transfer_request(
 
 @router.get("/transfer", response_model=List[schemas.TransferRequestResponse])
 def get_transfer_requests(
+    start_date: str = None, 
+    end_date: str = None, 
+    status: str = None,          # 👈 追加
+    student_id: int = None,      # 👈 追加
+    instructor_id: int = None,   # 👈 追加
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    # 生徒の場合は自分のIDを強制する処理（既存のまま）
     if current_user.role == "student":
         student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
-        student_id = student.id if student else -1
-        return crud_applications.get_transfer_requests(db, current_user, student_id=student_id)
+        s_id = student.id if student else -1
+        return crud_applications.get_transfer_requests(db, current_user, student_id=s_id, start_date=start_date, end_date=end_date, status=status, instructor_id=instructor_id)
     else:
-        return crud_applications.get_transfer_requests(db, current_user)
+        return crud_applications.get_transfer_requests(db, current_user, student_id=student_id, start_date=start_date, end_date=end_date, status=status, instructor_id=instructor_id)
 
 @router.patch("/transfer/{request_id}/status", response_model=schemas.TransferRequestResponse)
 def update_transfer_status(
@@ -101,15 +107,21 @@ def create_absence_report(
 
 @router.get("/absence", response_model=List[schemas.AbsenceReportResponse])
 def get_absence_reports(
+    start_date: str = None, 
+    end_date: str = None, 
+    status: str = None,          # 👈 追加
+    student_id: int = None,      # 👈 追加
+    instructor_id: int = None,   # 👈 追加
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    # 生徒の場合は自分のIDを強制する処理（既存のまま）
     if current_user.role == "student":
         student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
-        student_id = student.id if student else -1
-        return crud_applications.get_absence_reports(db, current_user, student_id=student_id)
+        s_id = student.id if student else -1
+        return crud_applications.get_absence_reports(db, current_user, student_id=s_id, start_date=start_date, end_date=end_date, status=status, instructor_id=instructor_id)
     else:
-        return crud_applications.get_absence_reports(db, current_user)
+        return crud_applications.get_absence_reports(db, current_user, student_id=student_id, start_date=start_date, end_date=end_date, status=status, instructor_id=instructor_id)
 
 @router.patch("/absence/{report_id}/status", response_model=schemas.AbsenceReportResponse)
 def update_absence_status(
@@ -126,4 +138,42 @@ def update_absence_status(
         raise HTTPException(status_code=404, detail="Absence report not found")
     return updated
 
-# 🪓 テスト用だった @router.post("/webhook/line") や WebhookHandler 関連は綺麗に削除しました！
+# --- Delete Endpoints (削除機能) ---
+
+@router.delete("/transfer/{request_id}", status_code=204)
+def delete_transfer_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 生徒は削除不可
+    if current_user.role == "student":
+        raise HTTPException(status_code=403, detail="Not authorized to delete requests")
+    
+    # 対象の振替申請を検索（※モデル名が違う場合は models.Transfer に変更してください）
+    transfer = db.query(models.TransferRequest).filter(models.TransferRequest.id == request_id).first()
+    if not transfer:
+        raise HTTPException(status_code=404, detail="Transfer request not found")
+    
+    db.delete(transfer)
+    db.commit()
+    return None
+
+@router.delete("/absence/{report_id}", status_code=204)
+def delete_absence_report(
+    report_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 生徒は削除不可
+    if current_user.role == "student":
+        raise HTTPException(status_code=403, detail="Not authorized to delete reports")
+    
+    # 対象の欠席申請を検索（※モデル名が違う場合は models.Absence に変更してください）
+    absence = db.query(models.AbsenceReport).filter(models.AbsenceReport.id == report_id).first()
+    if not absence:
+        raise HTTPException(status_code=404, detail="Absence report not found")
+    
+    db.delete(absence)
+    db.commit()
+    return None
