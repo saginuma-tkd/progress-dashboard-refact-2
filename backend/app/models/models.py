@@ -81,7 +81,12 @@ class MasterTextbook(Base):
     book_name: Mapped[str] = mapped_column(String, nullable=False)
     duration: Mapped[Optional[float]] = mapped_column(Float)
 
-    __table_args__ = (UniqueConstraint('subject', 'level', 'book_name', name='_subject_level_book_uc'),)
+    # 🌟 追加：テナントと校舎の紐付け（階層管理用）
+    tenant_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
+    school_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("schools.id", ondelete="CASCADE"), nullable=True)
+
+    # 🌟 変更：テナントや校舎が違えば、同じ名前の参考書を登録できるように制約を拡張
+    __table_args__ = (UniqueConstraint('subject', 'level', 'book_name', 'tenant_id', 'school_id', name='_subject_level_book_scope_uc'),)
 
 class Progress(Base):
     __tablename__ = "progress"
@@ -314,16 +319,17 @@ class TeachingMaterial(Base):
     file_size: Mapped[Optional[int]] = mapped_column(Integer)
     original_filename: Mapped[Optional[str]] = mapped_column(String)
     internal_memo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    tenant_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tenants.id"), nullable=True)  # ← 追加済み
-    # カテゴリ: 'material'（教材）| 'route_table'（ルート表）
-    category: Mapped[str] = mapped_column(String, nullable=False, server_default="material")
     
+    tenant_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tenants.id"), nullable=True)  # ← 既存
+    # 🌟 追加：校舎ごとの専用教材にするための紐付け
+    school_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("schools.id", ondelete="CASCADE"), nullable=True)
+    
+    category: Mapped[str] = mapped_column(String, nullable=False, server_default="material")
     academic_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
-
-    # リレーション変更（複数形になっています）
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
+    
     subjects = relationship("SubjectTag", secondary=material_subject_association, back_populates="materials")
     detail_tags = relationship("DetailTag", secondary=material_detail_association, back_populates="materials")
 

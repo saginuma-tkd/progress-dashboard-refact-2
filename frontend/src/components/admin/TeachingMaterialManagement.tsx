@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { toast } from 'sonner';
-import { Upload, Trash2, Download, FileText, Edit, Save, X, BookOpen, Map, Tags } from 'lucide-react';
+import { Upload, Trash2, Download, FileText, Edit, Save, X, BookOpen, Map, Tags, Globe, Building2, Info } from 'lucide-react';
+import { Badge } from '../ui/badge'; // 🌟 追加
 
 interface RouteTableItem {
     id: number;
@@ -20,6 +21,7 @@ interface RouteTableItem {
     uploaded_at: string;
     subjects?: Tag[];
     detail_tags?: Tag[];
+    school_id?: number | null; // 🌟 追加
 }
 
 export default function TeachingMaterialManagement() {
@@ -30,6 +32,9 @@ export default function TeachingMaterialManagement() {
     const [routes, setRoutes] = useState<RouteTableItem[]>([]);
     const [subjects, setSubjects] = useState<Tag[]>([]);
     const [details, setDetails] = useState<Tag[]>([]);
+
+    // 🌟 権限管理用のステート
+    const [userRole, setUserRole] = useState<string>("");
 
     // --- 統合フォーム用ステート ---
     const [category, setCategory] = useState<'material' | 'route_table'>('material');
@@ -54,9 +59,16 @@ export default function TeachingMaterialManagement() {
     // --- データ取得 ---
     const fetchData = async () => {
         try {
+            // 🌟 ユーザー情報を取得
+            const savedUser = localStorage.getItem('user');
+            if (savedUser) {
+                const userObj = JSON.parse(savedUser);
+                setUserRole(String(userObj.role || '').toLowerCase());
+            }
+
             const [matRes, routeRes, subRes, detRes] = await Promise.all([
                 api.get('/materials/?category=material'),
-                api.get('/routes/list'),
+                api.get('/routes/list'), // ← ルート表一覧を取得するAPI（バックエンドの実装に依存）
                 api.get('/materials/tags/subjects'),
                 api.get('/materials/tags/details')
             ]);
@@ -73,6 +85,14 @@ export default function TeachingMaterialManagement() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // 🌟 権限チェック：この教材・ルート表を編集・削除していいか？
+    const canEditOrDelete = (item: any) => {
+        // 開発者・テナント長ならすべて編集可能
+        if (userRole === "developer" || userRole === "super_admin") return true;
+        // 校舎長なら、自分の校舎専用のもの（school_idが入っているもの）だけ編集可能
+        return item.school_id !== null && item.school_id !== undefined;
+    };
 
     // --- フォーム操作 ---
     const resetForm = () => {
@@ -137,11 +157,16 @@ export default function TeachingMaterialManagement() {
                 if (!routeYear) return toast.error("対象年度は必須です");
                 formData.append('academic_year', routeYear);
 
+                // 🌟 ルート表アップロードの際も category を明示的に送るよう修正
+                formData.append('category', 'route_table');
+                formData.append('title', `${routeYear}年度 ルート表`); // DB制約回避用
+
                 if (editingId) {
                     await api.patch(`/routes/${editingId}`, formData);
                     toast.success("ルート表情報を更新しました");
                 } else {
-                    await api.post('/routes/upload', formData);
+                    // ルート表もmaterialsエンドポイントからアップロードする設計になっている場合
+                    await api.post('/materials/', formData);
                     toast.success("ルート表をアップロードしました");
                 }
             }
@@ -165,7 +190,7 @@ export default function TeachingMaterialManagement() {
 
         try {
             if (type === 'material') await api.delete(`/materials/${id}`);
-            else await api.delete(`/routes/${id}`);
+            else await api.delete(`/routes/${id}`); // バックエンドの構成に応じて適宜変更
             toast.success("削除しました");
             fetchData();
         } catch (error) {
@@ -173,9 +198,18 @@ export default function TeachingMaterialManagement() {
         }
     };
 
-    const handleDownload = (id: number, type: 'route') => {
-        const url = `${api.getUri()}/${type}s/download/${id}`;
-        window.open(url, '_blank');
+    const handleDownload = (id: number, type: 'route' | 'material') => {
+        // materialsエンドポイントに一本化されていると想定
+        const url = `${api.getUri()}/materials/${id}/pdf`;
+
+        // 事前署名付きURLを取得してから開く
+        api.get(url).then(res => {
+            if (res.data && res.data.url) {
+                window.open(res.data.url, '_blank');
+            }
+        }).catch(() => {
+            toast.error("ファイルの取得に失敗しました");
+        });
     };
 
     // --- タグ管理 ---
@@ -218,12 +252,10 @@ export default function TeachingMaterialManagement() {
     };
 
     return (
-        // 🌟 ここが最大の変更点: lg:grid-cols-12 で左右に分割し、items-start で上揃えにする
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
             {/* =========================================
                 [左列] 統合アップロードフォーム (5/12の幅を占有)
-                sticky top-6 をつけることで、スクロールしても画面上部に追従します！
             ========================================= */}
             <div className="lg:col-span-5 xl:col-span-4 sticky top-6">
                 <form onSubmit={handleUploadOrUpdate} className={`p-5 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-200'}`}>
@@ -253,8 +285,19 @@ export default function TeachingMaterialManagement() {
                         </div>
                     </div>
 
-                    {/* 🌟 フォーム内が狭くなったので、2カラム構成をやめて1カラム（縦積み）に変更 */}
                     <div className="space-y-6">
+
+                        {/* 🌟 登録範囲のガイダンス */}
+                        <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs flex items-start gap-2 border border-blue-100">
+                            <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
+                            <div>
+                                {userRole === "developer" || userRole === "super_admin"
+                                    ? <span>あなたの権限では、<strong>「テナント全体共通」</strong>のファイルとしてアップロードされます。</span>
+                                    : <span>あなたの権限では、<strong>「自校舎専用」</strong>のファイルとしてアップロードされます。</span>
+                                }
+                            </div>
+                        </div>
+
                         {/* ファイル・入力フィールド */}
                         <div className="space-y-4">
                             <div className="space-y-1.5">
@@ -324,7 +367,6 @@ export default function TeachingMaterialManagement() {
 
             {/* =========================================
                 [右列] ファイル一覧 & タグ管理タブ (7/12の幅を占有)
-                ここは自由に縦スクロールできるようになります
             ========================================= */}
             <div className="lg:col-span-7 xl:col-span-8">
                 <Tabs defaultValue="materials" className="w-full">
@@ -341,27 +383,50 @@ export default function TeachingMaterialManagement() {
                                 <TableHeader className="bg-gray-50/80">
                                     <TableRow>
                                         <TableHead className="font-bold">タイトル</TableHead>
+                                        <TableHead className="font-bold w-24">公開範囲</TableHead> {/* 🌟 追加 */}
                                         <TableHead className="font-bold">タグ</TableHead>
-                                        <TableHead className="text-right font-bold w-24">操作</TableHead>
+                                        <TableHead className="text-right font-bold w-28">操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {materials.map(m => (
+                                    {materials.map((m: any) => (
                                         <TableRow key={m.id} className="hover:bg-gray-50/50">
                                             <TableCell className="font-medium text-gray-900">{m.title}</TableCell>
+
+                                            {/* 🌟 バッジ表示 */}
+                                            <TableCell>
+                                                {m.school_id === null || m.school_id === undefined ? (
+                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-normal shadow-none whitespace-nowrap">
+                                                        <Globe className="w-3 h-3 mr-1" />共通
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal shadow-none whitespace-nowrap">
+                                                        <Building2 className="w-3 h-3 mr-1" />自校舎
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
+
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-1.5">
-                                                    {m.subjects?.map(s => <span key={s.id} className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded">{s.name}</span>)}
-                                                    {m.detail_tags?.map(d => <span key={d.id} className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded">{d.name}</span>)}
+                                                    {m.subjects?.map((s: any) => <span key={s.id} className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded">{s.name}</span>)}
+                                                    {m.detail_tags?.map((d: any) => <span key={d.id} className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded">{d.name}</span>)}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-right space-x-1">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEditMaterial(m)} className="h-8 w-8 text-gray-500 hover:text-indigo-600"><Edit className="w-4 h-4" /></Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(m.id, 'material')} className="h-8 w-8 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                                            <TableCell className="text-right space-x-0.5">
+                                                <Button variant="ghost" size="icon" onClick={() => handleDownload(m.id, 'material')} className="h-8 w-8 text-gray-500 hover:text-blue-600"><Download className="w-4 h-4" /></Button>
+                                                {/* 🌟 権限チェック */}
+                                                {canEditOrDelete(m) ? (
+                                                    <>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleEditMaterial(m)} className="h-8 w-8 text-gray-500 hover:text-indigo-600"><Edit className="w-4 h-4" /></Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleDelete(m.id, 'material')} className="h-8 w-8 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[10px] text-gray-400 ml-2">編集不可</span>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {materials.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-12 text-gray-400">登録されているプリントはありません</TableCell></TableRow>}
+                                    {materials.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-12 text-gray-400">登録されているプリントはありません</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </div>
@@ -374,34 +439,56 @@ export default function TeachingMaterialManagement() {
                                 <TableHeader className="bg-gray-50/80">
                                     <TableRow>
                                         <TableHead className="font-bold">ファイル</TableHead>
+                                        <TableHead className="font-bold w-24">公開範囲</TableHead> {/* 🌟 追加 */}
                                         <TableHead className="font-bold">タグ</TableHead>
                                         <TableHead className="text-right font-bold w-28">操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {routes.map((file) => (
+                                    {routes.map((file: any) => (
                                         <TableRow key={file.id} className="hover:bg-gray-50/50">
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-xs text-gray-500 font-mono font-bold">{file.academic_year}年度</span>
-                                                    <span className="text-sm font-medium text-gray-800 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-gray-400" /> {file.filename}</span>
+                                                    <span className="text-sm font-medium text-gray-800 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-gray-400" /> {file.filename || file.title || 'ルート表'}</span>
                                                 </div>
                                             </TableCell>
+
+                                            {/* 🌟 バッジ表示 */}
+                                            <TableCell>
+                                                {file.school_id === null || file.school_id === undefined ? (
+                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-normal shadow-none whitespace-nowrap">
+                                                        <Globe className="w-3 h-3 mr-1" />共通
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal shadow-none whitespace-nowrap">
+                                                        <Building2 className="w-3 h-3 mr-1" />自校舎
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
+
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-1.5">
-                                                    {file.subjects?.map(s => <span key={s.id} className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold px-2 py-0.5 rounded">{s.name}</span>)}
-                                                    {file.detail_tags?.map(d => <span key={d.id} className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded">{d.name}</span>)}
+                                                    {file.subjects?.map((s: any) => <span key={s.id} className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold px-2 py-0.5 rounded">{s.name}</span>)}
+                                                    {file.detail_tags?.map((d: any) => <span key={d.id} className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded">{d.name}</span>)}
                                                     {(!file.subjects?.length && !file.detail_tags?.length) && <span className="text-xs text-gray-400">タグなし</span>}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right space-x-0.5">
                                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(file.id, 'route')}><Download className="w-4 h-4 text-blue-500" /></Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditRoute(file)}><Edit className="w-4 h-4 text-gray-500 hover:text-indigo-600" /></Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(file.id, 'route')}><Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" /></Button>
+                                                {/* 🌟 権限チェック */}
+                                                {canEditOrDelete(file) ? (
+                                                    <>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditRoute(file)}><Edit className="w-4 h-4 text-gray-500 hover:text-indigo-600" /></Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(file.id, 'route')}><Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" /></Button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[10px] text-gray-400 ml-2">編集不可</span>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {routes.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-12 text-gray-400">登録されているルート表はありません</TableCell></TableRow>}
+                                    {routes.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-12 text-gray-400">登録されているルート表はありません</TableCell></TableRow>}
                                 </TableBody>
                             </Table>
                         </div>

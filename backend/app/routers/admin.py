@@ -27,22 +27,32 @@ def get_current_admin(current_user: models.User = Depends(deps.get_current_user)
 @router.post("/textbooks")
 def create_textbook(
     data: schemas.MasterTextbookCreate, 
-    session: Session = Depends(get_db)
+    session: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin)  # 🌟 追加: 誰が登録したかを受け取る
 ):
-    # 重複チェック
+    # 🌟 権限から所属を決定
+    school_id = None if current_user.role in ["developer", "super_admin"] else current_user.school_id
+
+    # 🌟 重複チェックを「同じ校舎内」に限定する
     existing = session.query(models.MasterTextbook).filter(
         models.MasterTextbook.book_name == data.book_name,
-        models.MasterTextbook.subject == data.subject
+        models.MasterTextbook.subject == data.subject,
+        models.MasterTextbook.level == data.level,
+        models.MasterTextbook.tenant_id == current_user.tenant_id,
+        models.MasterTextbook.school_id == school_id
     ).first()
     
     if existing:
-        raise HTTPException(status_code=400, detail="Textbook already exists")
+        raise HTTPException(status_code=400, detail="この参考書はすでに登録されています")
 
+    # 🌟 自分の校舎IDをセットして保存
     new_book = models.MasterTextbook(
         subject=data.subject,
         level=data.level,
         book_name=data.book_name,
-        duration=data.duration
+        duration=data.duration,
+        tenant_id=current_user.tenant_id,
+        school_id=school_id
     )
     session.add(new_book)
     session.commit()
@@ -54,11 +64,17 @@ def create_textbook(
 def update_textbook(
     book_id: int,
     data: schemas.MasterTextbookUpdate,
-    session: Session = Depends(get_db)
+    session: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin) # 🌟 追加
 ):
     book = session.query(models.MasterTextbook).filter(models.MasterTextbook.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Textbook not found")
+    
+    # 🌟 権限チェック（他校舎のデータを勝手に編集させない）
+    if current_user.role not in ["developer", "super_admin"]:
+        if book.school_id != current_user.school_id:
+            raise HTTPException(status_code=403, detail="他校舎の参考書は編集できません")
     
     if data.subject is not None:
         book.subject = data.subject
@@ -75,10 +91,19 @@ def update_textbook(
 
 # 3. 削除
 @router.delete("/textbooks/{book_id}")
-def delete_textbook(book_id: int, session: Session = Depends(get_db)):
+def delete_textbook(
+    book_id: int, 
+    session: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin) # 🌟 追加
+):
     book = session.query(models.MasterTextbook).filter(models.MasterTextbook.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Textbook not found")
+    
+    # 🌟 権限チェック（他校舎のデータを勝手に削除させない）
+    if current_user.role not in ["developer", "super_admin"]:
+        if book.school_id != current_user.school_id:
+            raise HTTPException(status_code=403, detail="他校舎の参考書は削除できません")
     
     session.delete(book)
     session.commit()

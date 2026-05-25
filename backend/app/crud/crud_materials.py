@@ -1,4 +1,7 @@
+# backend/app/crud/crud_materials.py
+
 from sqlalchemy.orm import Session
+from sqlalchemy import or_  # 🌟 OR条件を使うために追加
 from app.models import models
 from app.routers import deps
 from app.routers.deps import get_tenant_id_for_user
@@ -30,7 +33,6 @@ def get_all_subject_tags(db: Session):
 def get_all_detail_tags(db: Session):
     return db.query(models.DetailTag).all()
 
-# ★追加: タグの削除機能
 def delete_subject_tag(db: Session, tag_id: int):
     tag = db.query(models.SubjectTag).filter(models.SubjectTag.id == tag_id).first()
     if tag:
@@ -56,6 +58,10 @@ def _set_material_tags(db: Session, db_material: models.TeachingMaterial, subjec
 
 def create_material(db: Session, title: str, s3_key: str, file_size: int, original_filename: str, current_user: User, internal_memo: Optional[str] = None, subject_ids: List[int] = [], detail_tag_ids: List[int] = [], category: str = "material"):
     tenant_id = get_tenant_id_for_user(db, current_user)
+    
+    # 🌟 追加: テナント長(developer)や開発者はテナント全体(None)、校舎長などは自分の校舎専用にする
+    school_id = None if current_user.role in ["developer", "super_admin"] else current_user.school_id
+
     db_material = models.TeachingMaterial(
         title=title,
         s3_key=s3_key,
@@ -63,6 +69,7 @@ def create_material(db: Session, title: str, s3_key: str, file_size: int, origin
         original_filename=original_filename,
         internal_memo=internal_memo,
         tenant_id=tenant_id,
+        school_id=school_id, # 🌟 保存時にセット
         category=category
     )
     _set_material_tags(db, db_material, subject_ids, detail_tag_ids)
@@ -72,7 +79,6 @@ def create_material(db: Session, title: str, s3_key: str, file_size: int, origin
     db.refresh(db_material)
     return db_material
 
-# ★追加: 教材の更新機能
 def update_material(db: Session, material_id: int, title: str, current_user: User, s3_key: Optional[str] = None, file_size: Optional[int] = None, original_filename: Optional[str] = None, internal_memo: Optional[str] = None, subject_ids: Optional[List[int]] = None, detail_tag_ids: Optional[List[int]] = None):
     db_material = deps.get_tenant_query(db, models.TeachingMaterial, current_user).filter(models.TeachingMaterial.id == material_id).first()
     if not db_material:
@@ -94,10 +100,17 @@ def update_material(db: Session, material_id: int, title: str, current_user: Use
 def get_materials(db: Session, current_user: User, subject_id: Optional[int] = None, detail_tag_id: Optional[int] = None, search_query: Optional[str] = None, category: Optional[str] = None):
     query = deps.get_tenant_query(db, models.TeachingMaterial, current_user)
     
-    # カテゴリフィルタ
+    # 🌟 追加: 「テナント全体（school_idが空）」または「自分の校舎」のものだけを取得
+    if current_user.role not in ["developer", "super_admin"]:
+        query = query.filter(
+            or_(
+                models.TeachingMaterial.school_id == None,
+                models.TeachingMaterial.school_id == current_user.school_id
+            )
+        )
+    
     if category:
         query = query.filter(models.TeachingMaterial.category == category)
-    # 中間テーブルを通した絞り込み
     if subject_id:
         query = query.filter(models.TeachingMaterial.subjects.any(id=subject_id))
     if detail_tag_id:

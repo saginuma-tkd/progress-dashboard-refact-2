@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/badge';
 import { Check, X, Clock, ShieldAlert, MessageSquare, Trash2, Search, Filter } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useMutation } from '@tanstack/react-query';
+import { useAuth } from '../../contexts/AuthContext';
 import api from '../../lib/api';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
@@ -17,8 +18,9 @@ import { Textarea } from '../../components/ui/textarea';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 export default function ApplicationReviewPage() {
-  const [isInstructor, setIsInstructor] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
+  const isInstructor = user?.role === 'user';
+  const isAdmin = ['admin', 'developer', 'super_admin'].includes(user?.role ?? '');
 
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
@@ -46,49 +48,22 @@ export default function ApplicationReviewPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'transfer' | 'absence', id: number } | null>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    let hasAdminPrivilege = false;
-
-    if (savedUser) {
-      const userObj = JSON.parse(savedUser);
-      // 🌟 大文字小文字のブレを吸収
-      const role = String(userObj.role || '').toLowerCase();
-
-      // 🌟 講師 (user) の判定
-      if (role === 'user') {
-        setIsInstructor(true);
-      }
-
-      // 🌟 校舎長(admin)、テナント長(developer)、開発者(super_admin) のいずれかならAdmin権限を付与！
-      if (role === 'admin' || role === 'developer' || role === 'super_admin') {
-        setIsAdmin(true);
-        hasAdminPrivilege = true;
-      }
-    }
+    if (!user) return;
 
     const fetchLists = async () => {
       try {
-        // 1. 生徒一覧の取得
         const studentsRes = await api.get('/students');
-        // データが配列ならそのまま、オブジェクトなら中身を探す
-        const sData = Array.isArray(studentsRes.data) ? studentsRes.data : (studentsRes.data?.items || []);
+        const sData = Array.isArray(studentsRes.data)
+          ? studentsRes.data
+          : (studentsRes.data?.items || []);
         setStudentList(sData);
 
-        // 2. Admin権限がある場合のみ、講師一覧を取得
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-          const userObj = JSON.parse(savedUser);
-          const role = String(userObj.role || '').toLowerCase();
-
-          // admin, developer, super_admin なら講師一覧を取得
-          if (role === 'admin' || role === 'developer' || role === 'super_admin') {
-            // 🌟 URLを /admin/users に指定
-            const instructorsRes = await api.get('/admin/users');
-
-            // 🌟 ここも直接配列として受け取る
-            const iData = Array.isArray(instructorsRes.data) ? instructorsRes.data : (instructorsRes.data?.items || []);
-            setInstructorList(iData);
-          }
+        if (isAdmin) {
+          const instructorsRes = await api.get('/admin/users');
+          const iData = Array.isArray(instructorsRes.data)
+            ? instructorsRes.data
+            : (instructorsRes.data?.items || []);
+          setInstructorList(iData.filter((i: any) => i.role === 'user')); // ← ここだけ変更
         }
       } catch (e) {
         console.error("リストの取得に失敗しました", e);
@@ -96,7 +71,7 @@ export default function ApplicationReviewPage() {
     };
 
     fetchLists();
-  }, []);
+  }, [user]);
 
   const deleteTransferMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/applications/transfer/${id}`),
