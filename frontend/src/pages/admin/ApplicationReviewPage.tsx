@@ -45,27 +45,49 @@ export default function ApplicationReviewPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'transfer' | 'absence', id: number } | null>(null);
 
-  // 🌟 ここからが正しく区切られた useEffect です！
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
+    let hasAdminPrivilege = false;
+
     if (savedUser) {
       const userObj = JSON.parse(savedUser);
-      if (userObj.role === 'user') setIsInstructor(true);
-      if (userObj.role === 'admin' || userObj.role === 'superuser') setIsAdmin(true);
+      // 🌟 大文字小文字のブレを吸収
+      const role = String(userObj.role || '').toLowerCase();
+
+      // 🌟 講師 (user) の判定
+      if (role === 'user') {
+        setIsInstructor(true);
+      }
+
+      // 🌟 校舎長(admin)、テナント長(developer)、開発者(super_admin) のいずれかならAdmin権限を付与！
+      if (role === 'admin' || role === 'developer' || role === 'super_admin') {
+        setIsAdmin(true);
+        hasAdminPrivilege = true;
+      }
     }
 
     const fetchLists = async () => {
       try {
+        // 1. 生徒一覧の取得
         const studentsRes = await api.get('/students');
-        const sData = studentsRes.data?.items || studentsRes.data || [];
-        setStudentList(Array.isArray(sData) ? sData : []);
+        // データが配列ならそのまま、オブジェクトなら中身を探す
+        const sData = Array.isArray(studentsRes.data) ? studentsRes.data : (studentsRes.data?.items || []);
+        setStudentList(sData);
 
+        // 2. Admin権限がある場合のみ、講師一覧を取得
+        const savedUser = localStorage.getItem('user');
         if (savedUser) {
           const userObj = JSON.parse(savedUser);
-          if (userObj.role === 'admin' || userObj.role === 'superuser') {
+          const role = String(userObj.role || '').toLowerCase();
+
+          // admin, developer, super_admin なら講師一覧を取得
+          if (role === 'admin' || role === 'developer' || role === 'super_admin') {
+            // 🌟 URLを /admin/users に指定
             const instructorsRes = await api.get('/admin/users');
-            const iData = instructorsRes.data?.items || instructorsRes.data || [];
-            setInstructorList(Array.isArray(iData) ? iData : []);
+
+            // 🌟 ここも直接配列として受け取る
+            const iData = Array.isArray(instructorsRes.data) ? instructorsRes.data : (instructorsRes.data?.items || []);
+            setInstructorList(iData);
           }
         }
       } catch (e) {
@@ -73,10 +95,9 @@ export default function ApplicationReviewPage() {
       }
     };
 
-    fetchLists(); // 👈 関数を呼び出して...
-  }, []); // 👈 🌟 ここでしっかり useEffect を閉じます！！
+    fetchLists();
+  }, []);
 
-  // 👇 ここからは画面のアクション（関数）たちです
   const deleteTransferMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/applications/transfer/${id}`),
     onSuccess: () => { toast.success('振替申請を削除しました'); refetch(); },
@@ -129,7 +150,6 @@ export default function ApplicationReviewPage() {
     }
   };
 
-  // 👇 最後に画面（UI）を描画します
   return (
     <div className="container mx-auto py-2 md:py-8 px-0 md:px-4 max-w-6xl">
       <div className="mb-6 flex flex-col md:flex-row md:justify-between md:items-center gap-4 px-4 md:px-0">
@@ -322,9 +342,11 @@ export default function ApplicationReviewPage() {
                 onChange={(e) => setFilterStudent(e.target.value)}
               >
                 <option value="">すべての生徒</option>
-                {studentList.map(s => (
-                  <option key={s.id} value={s.id}>{s.username || s.name || s.full_name || `ID:${s.id}`}</option>
-                ))}
+                {studentList.map(s => {
+                  // 🌟 ネストされた user オブジェクトの中身も執念で探す
+                  const sName = s.user?.username || s.user?.full_name || s.username || s.full_name || s.name || `ID:${s.id}`;
+                  return <option key={s.id} value={s.id}>{sName}</option>;
+                })}
               </select>
             </div>
 
@@ -337,9 +359,11 @@ export default function ApplicationReviewPage() {
                   onChange={(e) => setFilterInstructor(e.target.value)}
                 >
                   <option value="">すべての講師</option>
-                  {instructorList.map(i => (
-                    <option key={i.id} value={i.id}>{i.username || i.name || i.full_name || `ID:${i.id}`} 先生</option>
-                  ))}
+                  {instructorList.map(i => {
+                    // 🌟 同様に講師名も安全に取得
+                    const iName = i.user?.username || i.username || i.full_name || i.name || `ID:${i.id}`;
+                    return <option key={i.id} value={i.id}>{iName} 先生</option>;
+                  })}
                 </select>
               </div>
             )}
@@ -366,6 +390,7 @@ export default function ApplicationReviewPage() {
         </DialogContent>
       </Dialog>
 
+      {/* 振替申請の承認・連絡用ポップアップ */}
       <Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen}>
         <DialogContent className="w-[90vw] max-w-[500px] rounded-xl">
           <DialogHeader className="border-b pb-4"><DialogTitle className="text-xl">振替の承認と連絡</DialogTitle></DialogHeader>
@@ -403,4 +428,4 @@ export default function ApplicationReviewPage() {
       />
     </div>
   );
-} // 👈 🌟 ここでコンポーネントがちゃんと閉じられます！！
+}

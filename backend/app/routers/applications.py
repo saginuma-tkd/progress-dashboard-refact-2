@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.crud import crud_applications
@@ -47,17 +47,17 @@ def create_transfer_request(
         
     return new_request
 
+# 🌟 2. 振替一覧APIの引数を Query(None) に変更
 @router.get("/transfer", response_model=List[schemas.TransferRequestResponse])
 def get_transfer_requests(
-    start_date: str = None, 
-    end_date: str = None, 
-    status: str = None,          # 👈 追加
-    student_id: int = None,      # 👈 追加
-    instructor_id: int = None,   # 👈 追加
+    start_date: str = Query(None), 
+    end_date: str = Query(None), 
+    status: str = Query(None),          # 👈 明示的に Query(None) にする
+    student_id: int = Query(None),      
+    instructor_id: int = Query(None),   
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 生徒の場合は自分のIDを強制する処理（既存のまま）
     if current_user.role == "student":
         student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
         s_id = student.id if student else -1
@@ -107,15 +107,14 @@ def create_absence_report(
 
 @router.get("/absence", response_model=List[schemas.AbsenceReportResponse])
 def get_absence_reports(
-    start_date: str = None, 
-    end_date: str = None, 
-    status: str = None,          # 👈 追加
-    student_id: int = None,      # 👈 追加
-    instructor_id: int = None,   # 👈 追加
+    start_date: str = Query(None), 
+    end_date: str = Query(None), 
+    status: str = Query(None),          
+    student_id: int = Query(None),      
+    instructor_id: int = Query(None),   
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 生徒の場合は自分のIDを強制する処理（既存のまま）
     if current_user.role == "student":
         student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
         s_id = student.id if student else -1
