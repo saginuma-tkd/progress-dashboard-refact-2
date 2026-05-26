@@ -1,35 +1,86 @@
 from sqlalchemy.orm import Session
-from app.models.models import User
+from app.models import models
 from app.schemas.schemas import UserCreate
 from app.core.security import get_password_hash
 from typing import List
+from app.schemas.schemas import AdminUserCreate
+from fastapi import HTTPException
+from typing import cast
+from passlib.context import CryptContext
 
-def get_users(db: Session, current_user: User) -> List[User]:
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_users(db: Session, current_user: models.User) -> List[models.User]:
     if current_user.role == 'developer':
         # Developer は全校舎の全ユーザーを取得
-        return db.query(User).all()
+        return db.query(models.User).all()
     elif current_user.role == 'admin':
         # Admin は自分の所属する校舎のユーザーのみを取得
-        return db.query(User).filter(User.school == current_user.school).all()
+        return db.query(models.User).filter(models.User.school == current_user.school).all()
     else:
         # 一般 User は基本的には自分の情報のみ（要件に応じて変更可）
-        return db.query(User).filter(User.id == current_user.id).all()
+        return db.query(models.User).filter(models.User.id == current_user.id).all()
 
 def get_user(db: Session, user_id: int):
-    return db.query(User).filter(User.id == user_id).first()
+    return db.query(models.User).filter(models.User.id == user_id).first()
 
 def get_user_by_username(db: Session, username: str):
-    return db.query(User).filter(User.username == username).first()
+    return db.query(models.User).filter(models.User.username == username).first()
 
-def create_user(db: Session, user: UserCreate):
-    hashed_password = get_password_hash(user.password)
-    db_user = User(
-        username=user.username,
-        password=hashed_password,
-        role=user.role,
-        school=user.school
+def create_user(db: Session, user_in: AdminUserCreate, current_user: models.User):
+    school = user_in.school
+    if current_user.role == "admin":
+        school = current_user.school or ""
+
+    if db.query(models.User).filter(models.User.username == user_in.username).first():
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    hashed_pw = pwd_context.hash(user_in.password)
+    new_user = models.User(
+        username=user_in.username, password=hashed_pw,
+        role=user_in.role, school=school
     )
-    db.add(db_user)
+    db.add(new_user)
     db.commit()
-    db.refresh(db_user)
-    return db_user
+    db.refresh(new_user)
+
+    try:
+        from app.routers.audit import log_action
+        log_action(
+            db=db, user_id=cast(int, current_user.id),
+            action="CREATE_USER", branch_id=getattr(current_user, 'branch_id', None),
+            details=f"新規ユーザー '{new_user.username}' (校舎: {new_user.school}) を作成しました"
+        )
+    except Exception as e:
+        print(f"監査ログの記録に失敗: {e}")
+
+    return new_user
+
+def update_user(db: Session, user_id: int, data: dict, current_user: models.User):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user: raise HTTPException(status_code=404, detail="User not found")
+
+    if current_user.role == 'admin' and user.school != current_user.school:
+        raise HTTPException(status_code=403, detail="Cannot edit users from other schools")
+
+    for key, value in data.items():
+        if key == "password": 
+            str_val = str(value).strip() if value else ""
+            if str_val and not str_val.startswith("$2b$") and not str_val.startswith("$2a$") and str_val != "********":
+                user.password = pwd_context.hash(str_val)
+        elif hasattr(user, key) and key != "id": 
+            if key == "role" and current_user.role == 'admin' and value == 'developer':
+                raise HTTPException(status_code=403, detail="Admin cannot create developer")
+            setattr(user, key, value)
+            
+    db.commit()
+    db.refresh(user)
+    return user
+
+def delete_user(db: Session, user_id: int):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        db.delete(user)
+        db.commit()
+        return True
+    return False

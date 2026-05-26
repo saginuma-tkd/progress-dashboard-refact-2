@@ -12,6 +12,7 @@ import { Plus, Trash2, Calendar, FileText, BarChart2, Clock, CheckCircle, Chevro
 import api from '../lib/api';
 import html2canvas from 'html2canvas';
 
+
 interface ExamManagerProps {
     studentId: number;
     readOnly?: boolean;
@@ -268,12 +269,12 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                     <TabsContent value="past_exam" className="flex-1 flex flex-col p-2 md:p-4 overflow-hidden m-0 data-[state=inactive]:hidden">
                         <div className="flex justify-end mb-2 shrink-0">
                             {!readOnly && (
-                              <Button size="sm" onClick={() => { setEditingPastId(null); setNewPastExam({date: new Date().toISOString().split('T')[0], year: new Date().getFullYear(), correct_answers:0, total_questions:0, time_required:0, total_time_allowed:0}); setIsPastModalOpen(true); }}>
-                                  <Plus className="w-4 h-4 mr-1" /> 結果を記録
-                              </Button>
+                                <Button size="sm" onClick={() => { setEditingPastId(null); setNewPastExam({ date: new Date().toISOString().split('T')[0], year: new Date().getFullYear(), correct_answers: 0, total_questions: 0, time_required: 0, total_time_allowed: 0 }); setIsPastModalOpen(true); }}>
+                                    <Plus className="w-4 h-4 mr-1" /> 結果を記録
+                                </Button>
                             )}
                         </div>
-                        
+
                         <div id="past-exam-table" className="flex-1 overflow-y-auto overflow-x-hidden border rounded-md bg-white">
                             {/* 💻 PC用テーブル表示 */}
                             <div className="hidden md:block">
@@ -318,14 +319,14 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                                 </TableCell>
                                                 <TableCell>
                                                     {!readOnly && (
-                                                    <div className="flex justify-end gap-1">
-                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600" onClick={() => { setEditingPastId(item.id); setNewPastExam(item); setIsPastModalOpen(true); }}>
-                                                            <Edit className="w-4 h-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeletePastExam(item.id)}>
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </div>
+                                                        <div className="flex justify-end gap-1">
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600" onClick={() => { setEditingPastId(item.id); setNewPastExam(item); setIsPastModalOpen(true); }}>
+                                                                <Edit className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeletePastExam(item.id)}>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
                                                     )}
                                                 </TableCell>
                                             </TableRow>
@@ -380,9 +381,9 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                     <TabsContent value="mock_exam" className="flex-1 flex flex-col p-2 md:p-4 overflow-hidden m-0 data-[state=inactive]:hidden">
                         <div className="flex justify-end mb-2 shrink-0">
                             {!readOnly && (
-                            <Button size="sm" onClick={() => { setEditingMockId(null); setNewMockExam({result_type: "マーク", mock_exam_name: "", grade: ""}); setIsMockModalOpen(true); }}>
-                                <Plus className="w-4 h-4 mr-1" /> 模試を追加
-                            </Button>
+                                <Button size="sm" onClick={() => { setEditingMockId(null); setNewMockExam({ result_type: "マーク", mock_exam_name: "", grade: "" }); setIsMockModalOpen(true); }}>
+                                    <Plus className="w-4 h-4 mr-1" /> 模試を追加
+                                </Button>
                             )}
                         </div>
                         <div id="mock-exam-table" className="flex-1 overflow-y-auto overflow-x-hidden border rounded-md bg-white">
@@ -411,14 +412,14 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                                 </TableCell>
                                                 <TableCell>
                                                     {!readOnly && (
-                                                    <div className="flex justify-center gap-1">
-                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600" onClick={() => { setEditingMockId(item.id); setNewMockExam(item); setIsMockModalOpen(true); }}>
-                                                            <Edit className="w-4 h-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeleteMockExam(item.id)}>
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </div>
+                                                        <div className="flex justify-center gap-1">
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600" onClick={() => { setEditingMockId(item.id); setNewMockExam(item); setIsMockModalOpen(true); }}>
+                                                                <Edit className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeleteMockExam(item.id)}>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
                                                     )}
                                                 </TableCell>
                                             </TableRow>
@@ -465,9 +466,9 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                     <TabsContent value="acceptance" className="flex-1 flex flex-col p-2 md:p-4 overflow-hidden m-0 data-[state=inactive]:hidden">
                         <div className="flex justify-end mb-2 shrink-0">
                             {!readOnly && (
-                            <Button size="sm" onClick={() => { setEditingAcceptanceId(null); setNewAcceptance({}); setIsAcceptanceModalOpen(true); }}>
-                                <Plus className="w-4 h-4 mr-1" /> 日程を追加
-                            </Button>
+                                <Button size="sm" onClick={() => { setEditingAcceptanceId(null); setNewAcceptance({}); setIsAcceptanceModalOpen(true); }}>
+                                    <Plus className="w-4 h-4 mr-1" /> 日程を追加
+                                </Button>
                             )}
                         </div>
                         <div id="acceptance-table" className="flex-1 overflow-y-auto overflow-x-hidden border rounded-md bg-white">
@@ -499,7 +500,7 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                                 <TableCell>
                                                     <select
                                                         className={`text-xs p-1 rounded border ${item.result === "合格" ? "bg-green-100 text-green-800" :
-                                                                item.result === "不合格" ? "bg-red-50 text-red-800" : "bg-gray-50"
+                                                            item.result === "不合格" ? "bg-red-50 text-red-800" : "bg-gray-50"
                                                             }`}
                                                         value={item.result || "未受験"}
                                                         onChange={(e) => handleUpdateResult(item.id, e.target.value)}
@@ -512,14 +513,14 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                                 </TableCell>
                                                 <TableCell>
                                                     {!readOnly && (
-                                                    <div className="flex justify-end gap-1">
-                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600" onClick={() => { setEditingAcceptanceId(item.id); setNewAcceptance(item); setIsAcceptanceModalOpen(true); }}>
-                                                            <Edit className="w-4 h-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeleteAcceptance(item.id)}>
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </div>
+                                                        <div className="flex justify-end gap-1">
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600" onClick={() => { setEditingAcceptanceId(item.id); setNewAcceptance(item); setIsAcceptanceModalOpen(true); }}>
+                                                                <Edit className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeleteAcceptance(item.id)}>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
                                                     )}
                                                 </TableCell>
                                             </TableRow>
@@ -535,18 +536,18 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                     <div key={item.id} className="bg-white border border-gray-200 rounded p-3 flex flex-col gap-2 shadow-sm">
                                         <div className="font-bold text-sm text-gray-900">{item.university_name}</div>
                                         <div className="text-[11px] text-gray-500">{item.faculty_name} {item.department_name} ({item.exam_system})</div>
-                                        
+
                                         <div className="grid grid-cols-2 gap-1 text-[10px] mt-1 bg-gray-50 p-2 rounded border border-gray-100">
                                             <div className="text-purple-600 font-medium">願書: {item.application_deadline}</div>
                                             <div className="text-red-600 font-medium">試験: {item.exam_date}</div>
                                             <div className="text-green-600 font-medium">発表: {item.announcement_date}</div>
                                             <div className="text-yellow-600 font-medium">手続: {item.procedure_deadline}</div>
                                         </div>
-                                        
+
                                         <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-100">
                                             <select
                                                 className={`text-xs p-1 px-2 rounded font-medium ${item.result === "合格" ? "bg-green-100 text-green-800" :
-                                                        item.result === "不合格" ? "bg-red-50 text-red-800" : "bg-gray-100 text-gray-600"
+                                                    item.result === "不合格" ? "bg-red-50 text-red-800" : "bg-gray-100 text-gray-600"
                                                     }`}
                                                 value={item.result || "未受験"}
                                                 onChange={(e) => handleUpdateResult(item.id, e.target.value)}
@@ -600,7 +601,7 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                                 <div className="flex-1 flex flex-col gap-0.5 overflow-y-auto scrollbar-hide">
                                                     {getDayEvents(day).map((ev, j) => (
                                                         <div key={j} className={`text-[8px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded border truncate ${ev.color} leading-tight`}>
-                                                            <span className="font-bold mr-0.5">[{ev.type.slice(0,1)}]</span><span className="hidden md:inline">{ev.title}</span>
+                                                            <span className="font-bold mr-0.5">[{ev.type.slice(0, 1)}]</span><span className="hidden md:inline">{ev.title}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -647,32 +648,32 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
             {/* 過去問結果モーダル */}
             <Dialog open={isPastModalOpen} onOpenChange={setIsPastModalOpen}>
                 <DialogContent className="w-[90vw] max-w-[500px]">
-                <DialogHeader className="bg-gray-50/50 p-4 border-b -m-6 mb-2 rounded-t-lg"><DialogTitle>過去問結果</DialogTitle></DialogHeader>
-                <div className="grid gap-4 py-2">
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input className="h-8 text-xs" type="date" value={newPastExam.date || ''} onChange={e => setNewPastExam({...newPastExam, date: e.target.value})} />
-                        <Input className="h-8 text-xs" placeholder="科目" value={newPastExam.subject || ''} onChange={e => setNewPastExam({...newPastExam, subject: e.target.value})} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input className="h-8 text-xs" placeholder="大学名" value={newPastExam.university_name || ''} onChange={e => setNewPastExam({...newPastExam, university_name: e.target.value})} />
-                        <Input className="h-8 text-xs" type="number" placeholder="年度" value={newPastExam.year ?? ''} onChange={e => setNewPastExam({...newPastExam, year: Number(e.target.value)})} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1"><label className="text-[10px]">正解/総問</label>
-                            <div className="flex gap-2">
-                                <Input className="h-8 text-xs" type="number" placeholder="正解" value={newPastExam.correct_answers ?? ''} onChange={e => setNewPastExam({...newPastExam, correct_answers: Number(e.target.value)})} />
-                                <Input className="h-8 text-xs" type="number" placeholder="総問" value={newPastExam.total_questions ?? ''} onChange={e => setNewPastExam({...newPastExam, total_questions: Number(e.target.value)})} />
+                    <DialogHeader className="bg-gray-50/50 p-4 border-b -m-6 mb-2 rounded-t-lg"><DialogTitle>過去問結果</DialogTitle></DialogHeader>
+                    <div className="grid gap-4 py-2">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input className="h-8 text-xs" type="date" value={newPastExam.date || ''} onChange={e => setNewPastExam({ ...newPastExam, date: e.target.value })} />
+                            <Input className="h-8 text-xs" placeholder="科目" value={newPastExam.subject || ''} onChange={e => setNewPastExam({ ...newPastExam, subject: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input className="h-8 text-xs" placeholder="大学名" value={newPastExam.university_name || ''} onChange={e => setNewPastExam({ ...newPastExam, university_name: e.target.value })} />
+                            <Input className="h-8 text-xs" type="number" placeholder="年度" value={newPastExam.year ?? ''} onChange={e => setNewPastExam({ ...newPastExam, year: Number(e.target.value) })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1"><label className="text-[10px]">正解/総問</label>
+                                <div className="flex gap-2">
+                                    <Input className="h-8 text-xs" type="number" placeholder="正解" value={newPastExam.correct_answers ?? ''} onChange={e => setNewPastExam({ ...newPastExam, correct_answers: Number(e.target.value) })} />
+                                    <Input className="h-8 text-xs" type="number" placeholder="総問" value={newPastExam.total_questions ?? ''} onChange={e => setNewPastExam({ ...newPastExam, total_questions: Number(e.target.value) })} />
+                                </div>
+                            </div>
+                            <div className="space-y-1"><label className="text-[10px]">時間(所要/制限)</label>
+                                <div className="flex gap-2">
+                                    <Input className="h-8 text-xs" type="number" placeholder="所要" value={newPastExam.time_required ?? ''} onChange={e => setNewPastExam({ ...newPastExam, time_required: Number(e.target.value) })} />
+                                    <Input className="h-8 text-xs" type="number" placeholder="制限" value={newPastExam.total_time_allowed ?? ''} onChange={e => setNewPastExam({ ...newPastExam, total_time_allowed: Number(e.target.value) })} />
+                                </div>
                             </div>
                         </div>
-                        <div className="space-y-1"><label className="text-[10px]">時間(所要/制限)</label>
-                            <div className="flex gap-2">
-                                <Input className="h-8 text-xs" type="number" placeholder="所要" value={newPastExam.time_required ?? ''} onChange={e => setNewPastExam({...newPastExam, time_required: Number(e.target.value)})} />
-                                <Input className="h-8 text-xs" type="number" placeholder="制限" value={newPastExam.total_time_allowed ?? ''} onChange={e => setNewPastExam({...newPastExam, total_time_allowed: Number(e.target.value)})} />
-                            </div>
-                        </div>
                     </div>
-                </div>
-                <DialogFooter className="mt-2"><Button size="sm" onClick={handleSavePastExam}>{editingPastId ? "更新" : "記録"}</Button></DialogFooter>
+                    <DialogFooter className="mt-2"><Button size="sm" onClick={handleSavePastExam}>{editingPastId ? "更新" : "記録"}</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 

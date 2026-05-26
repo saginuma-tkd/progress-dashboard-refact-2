@@ -6,21 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Search, Filter, BarChart3 } from 'lucide-react';
 import api from '../../lib/api';
 import { toast } from 'sonner';
-
-interface MockExamRecord {
-    id: number;
-    student_name: string;
-    student_grade: string;
-    exam_name: string;
-    subject: string;
-    score: number;
-    deviation: number | null;
-    exam_date: string;
-}
+import { MockExamRecord } from '../../types';
 
 export default function MockExamList() {
     const [exams, setExams] = useState<MockExamRecord[]>([]);
-    
+
     // フィルター用ステート
     const [filterStudent, setFilterStudent] = useState("");
     const [filterSubject, setFilterSubject] = useState("ALL");
@@ -32,7 +22,7 @@ export default function MockExamList() {
 
     const fetchExams = async () => {
         try {
-            const res = await api.get('/admin/mock_exams');
+            const res = await api.get<MockExamRecord[]>('/admin/mock_exams');
             setExams(res.data);
         } catch (e) {
             console.error(e);
@@ -62,13 +52,13 @@ export default function MockExamList() {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mr-2">
                             <Filter className="w-4 h-4" /> 絞り込み:
                         </div>
-                        
+
                         {/* 生徒名検索 */}
                         <div className="space-y-1 flex-1">
                             <div className="relative">
                                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-muted-foreground" />
-                                <Input 
-                                    placeholder="生徒名で検索..." 
+                                <Input
+                                    placeholder="生徒名で検索..."
                                     value={filterStudent}
                                     onChange={e => setFilterStudent(e.target.value)}
                                     className="pl-8 h-9 text-sm"
@@ -78,8 +68,8 @@ export default function MockExamList() {
 
                         {/* 模試名検索 */}
                         <div className="space-y-1 flex-1">
-                            <Input 
-                                placeholder="模試名で検索 (例: 全統記述)..." 
+                            <Input
+                                placeholder="模試名で検索 (例: 全統記述)..."
                                 value={filterExamName}
                                 onChange={e => setFilterExamName(e.target.value)}
                                 className="h-9 text-sm"
@@ -131,12 +121,11 @@ export default function MockExamList() {
                                     </TableCell>
                                     <TableCell>{exam.exam_name}</TableCell>
                                     <TableCell>
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                                            exam.subject === '英語' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                            exam.subject === '数学' ? 'bg-green-50 text-green-700 border-green-200' :
-                                            exam.subject === '国語' ? 'bg-red-50 text-red-700 border-red-200' :
-                                            'bg-gray-50 text-gray-700 border-gray-200'
-                                        }`}>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${exam.subject === '英語' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                exam.subject === '数学' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                    exam.subject === '国語' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                        'bg-gray-50 text-gray-700 border-gray-200'
+                                            }`}>
                                             {exam.subject}
                                         </span>
                                     </TableCell>
@@ -145,11 +134,10 @@ export default function MockExamList() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         {exam.deviation ? (
-                                            <span className={`font-bold ${
-                                                exam.deviation >= 60 ? 'text-pink-600' :
-                                                exam.deviation >= 50 ? 'text-blue-600' :
-                                                'text-gray-600'
-                                            }`}>
+                                            <span className={`font-bold ${exam.deviation >= 60 ? 'text-pink-600' :
+                                                    exam.deviation >= 50 ? 'text-blue-600' :
+                                                        'text-gray-600'
+                                                }`}>
                                                 {exam.deviation}
                                             </span>
                                         ) : '-'}

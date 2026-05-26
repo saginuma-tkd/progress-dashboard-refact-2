@@ -38,7 +38,7 @@ class Student(StudentBase):
     # Instructors can be fetched separately or included if needed
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # --- StudentInstructor Schemas ---
 class StudentInstructorBase(BaseModel):
@@ -53,7 +53,7 @@ class StudentInstructor(StudentInstructorBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # --- MasterTextbook Schemas ---
 class MasterTextbookBase(BaseModel):
@@ -67,7 +67,7 @@ class MasterTextbook(MasterTextbookBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # --- Progress Schemas ---
 class ProgressBase(BaseModel):
@@ -367,3 +367,98 @@ class TenantOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ProgressUpdate(BaseModel):
+    completed_units: int
+    total_units: int
+
+class CustomBookSchema(BaseModel):
+    subject: str
+    level: str
+    book_name: str
+    duration: float = 0.0
+
+class ProgressBatchCreate(BaseModel):
+    student_id: int
+    book_ids: List[int] = [] 
+    custom_books: List[CustomBookSchema] = []
+
+class AdminUserCreate(BaseModel):
+    username: str
+    password: str
+    role: str = "user"  # 指定がなければ一般講師(user)
+    school: str = ""    # 指定がなければ空文字
+
+# --- Attendance & Webhook Schemas ---
+class CompleteTransferRequest(BaseModel):
+    rowNumber: int
+    name: str
+
+class WebhookPayload(BaseModel):
+    type: str  # "transfer" (振替) または "absence" (欠席)
+    student_name: str
+    instructor_name: str
+    message: str
+
+# --- Exam & Acceptance Schemas (from exams.py) ---
+from typing import Union
+
+class AcceptanceCreate(BaseModel):
+    student_id: Optional[int] = None
+    university_name: str
+    faculty_name: str
+    department_name: Optional[str] = None
+    exam_system: Optional[str] = None
+    result: Optional[str] = "未受験"
+    application_deadline: Optional[str] = None
+    exam_date: Optional[str] = None
+    announcement_date: Optional[str] = None
+    procedure_deadline: Optional[str] = None
+
+class AcceptanceUpdate(BaseModel):
+    result: str
+
+class PastExamCreate(BaseModel):
+    student_id: Optional[int] = None
+    date: str
+    university_name: str
+    faculty_name: Optional[str] = None
+    exam_system: Optional[str] = None
+    year: int
+    subject: str
+    time_required: Optional[Union[int,str]] = None
+    total_time_allowed: Optional[Union[int,str]] = None
+    correct_answers: Optional[Union[int,str]] = None
+    total_questions: Optional[Union[int,str]] = None
+
+class MockExamCreate(BaseModel):
+    student_id: Optional[int] = None
+    result_type: str
+    mock_exam_name: str
+    mock_exam_format: str
+    grade: str
+    round: str
+    exam_date: Optional[date] = None
+    
+    # 記述式
+    subject_kokugo_desc: Optional[Union[int,str]] = None
+    subject_math_desc: Optional[Union[int,str]] = None
+    subject_english_desc: Optional[Union[int,str]] = None
+    subject_rika1_desc: Optional[Union[int,str]] = None
+    subject_rika2_desc: Optional[Union[int,str]] = None
+    subject_shakai1_desc: Optional[Union[int,str]] = None
+    subject_shakai2_desc: Optional[Union[int,str]] = None
+    
+    # マーク式
+    subject_kokugo_mark: Optional[Union[int,str]] = None
+    subject_math1a_mark: Optional[Union[int,str]] = None
+    subject_math2bc_mark: Optional[Union[int,str]] = None
+    subject_english_r_mark: Optional[Union[int,str]] = None
+    subject_english_l_mark: Optional[Union[int,str]] = None
+    subject_rika1_mark: Optional[Union[int,str]] = None
+    subject_rika2_mark: Optional[Union[int,str]] = None
+    subject_shakai1_mark: Optional[Union[int,str]] = None
+    subject_shakai2_mark: Optional[Union[int,str]] = None
+    subject_rika_kiso1_mark: Optional[Union[int,str]] = None
+    subject_rika_kiso2_mark: Optional[Union[int,str]] = None
+    subject_info_mark: Optional[Union[int,str]] = None

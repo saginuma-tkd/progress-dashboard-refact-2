@@ -14,7 +14,7 @@ reportlab
 jinja2
 xhtml2pdf
 passlib
-bcrypt
+bcrypt==3.2.2
 apscheduler==3.10.4
 httpx
 google-api-python-client

@@ -300,99 +300,27 @@ def read_instructors(
     return crud_user.get_users(db, current_user)
 
 # ==========================================
-# 1. 受け取るデータの「設計図」を作る
-# ==========================================
-class AdminUserCreate(BaseModel):
-    username: str
-    password: str
-    role: str = "user"  # 指定がなければ一般講師(user)
-    school: str = ""    # 指定がなければ空文字
-
-# ==========================================
 # 2. API本体 (dictではなく設計図を使う！)
 # ==========================================
 @router.post("/users")
 def create_user(
-    user_in: AdminUserCreate, # ← 🌟 ここを変更！
+    user_in: schemas.AdminUserCreate,
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(deps.get_current_admin_user)
 ):
-
-    # 管理者ユーザーの校舎取得(ユーザーの校舎のみを表示。developerはどの校舎も表示可能)
-    if current_user.role == "admin":
-        user_in.school = current_user.school or ""
-
-    # ユーザー名重複チェック
-    if db.query(models.User).filter(models.User.username == user_in.username).first():
-        raise HTTPException(status_code=400, detail="Username already registered")
-    
-    # パスワードハッシュ化
-    hashed_pw = pwd_context.hash(user_in.password)
-    
-    # データベースに保存
-    new_user = models.User(
-        username=user_in.username,
-        password=hashed_pw,
-        role=user_in.role,
-        school=user_in.school  # ← user_in.school でアクセスできます！
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-
-    # 🌟🌟 せっかくなので、ここにも監査ログを仕込みましょう！ 🌟🌟
-    # ※ファイル上部で `from app.routers.audit import log_action` している前提です
-    try:
-        log_action(
-            db=db,
-            user_id=cast(int, current_user.id),
-            action="CREATE_USER",
-            branch_id=getattr(current_user, 'branch_id', None),
-            details=f"新規ユーザー '{new_user.username}' (校舎: {new_user.school}) を作成しました"
-        )
-    except Exception as e:
-        print(f"監査ログの記録に失敗しましたが、ユーザー作成は継続します: {e}")
-
-    return new_user
+    return crud_user.create_user(db, user_in, current_user)
 
 @router.patch("/users/{user_id}")
 def update_user(
     user_id: int, data: dict, db: Session = Depends(get_db), current_user: models.User = Depends(deps.get_current_admin_user)
 ):
-    # 🌟 修正ポイント1：まずはデータベースから対象のユーザーを探して `user` 変数に入れる！
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    
-    # 🌟 修正ポイント2：もしユーザーが存在しなかったら404エラーを返す
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # adminは別校舎のユーザーを編集できないように保護
-    if current_user.role == 'admin' and user.school != current_user.school:
-        raise HTTPException(status_code=403, detail="Cannot edit users from other schools")
-
-    for key, value in data.items():
-        if key == "password": 
-            str_val = str(value).strip() if value else ""
-            if str_val and not str_val.startswith("$2b$") and not str_val.startswith("$2a$") and str_val != "********":
-                user.password = pwd_context.hash(str_val)
-        elif hasattr(user, key) and key != "id": 
-            # adminは他人のroleをdeveloperに引き上げることはできない等の保護（任意）
-            if key == "role" and current_user.role == 'admin' and value == 'developer':
-                raise HTTPException(status_code=403, detail="Admin cannot create developer")
-            setattr(user, key, value)
-            
-    db.commit()
-    db.refresh(user) # 念のため最新のDBの状態を反映させる
-    return user
+    return crud_user.update_user(db, user_id, data, current_user)
 
 @router.delete("/users/{user_id}")
 def delete_user(
     user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(deps.get_current_admin_user)
 ):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user:
-        db.delete(user)
-        db.commit()
+    crud_user.delete_user(db, user_id)
     return {"message": "Deleted"}
 
 
@@ -446,117 +374,20 @@ def read_students_with_details(
 def create_student(
     data: dict, db: Session = Depends(get_db), current_user: models.User = Depends(deps.get_current_admin_user)
 ):
-    # adminが生徒を作成する場合、強制的に自分の校舎を設定
-    target_school = data.get("school", "未設定")
-    if current_user.role == 'admin':
-        target_school = current_user.school
-
-    new_student = models.Student(
-        name=data["name"],
-        school=target_school,
-        grade=data.get("grade"),
-        previous_school=data.get("previous_school"), # 在籍/出身校
-        deviation_value=data.get("deviation_value"),
-        target_level=data.get("target_level")
-    )
-    db.add(new_student)
-    db.commit()
-    db.refresh(new_student)
-
-    # 講師設定 (is_main=1 or 0)
-    if data.get("main_instructor_id"):
-        db.add(models.StudentInstructor(
-            student_id=new_student.id, 
-            user_id=data["main_instructor_id"], 
-            is_main=1 # Integer
-        ))
-    
-    if "sub_instructor_ids" in data and isinstance(data["sub_instructor_ids"], list):
-        for sub_id in data["sub_instructor_ids"]:
-            if sub_id:
-                db.add(models.StudentInstructor(
-                    student_id=new_student.id, 
-                    user_id=sub_id, 
-                    is_main=0 # Integer
-                ))
-    
-    db.commit()
-    return new_student
+    return crud_student.create_student(db, data, current_user)
 
 @router.patch("/students/{student_id}")
 def update_student(
     student_id: int, data: dict, db: Session = Depends(get_db), current_user: models.User = Depends(deps.get_current_admin_user)
 ):
-    student = db.query(models.Student).filter(models.Student.id == student_id).first()
-    if not student: raise HTTPException(404, "Student not found")
-
-    # adminは別校舎の生徒を編集できない保護
-    if current_user.role == 'admin' and student.school != current_user.school:
-        raise HTTPException(status_code=403, detail="Cannot edit students from other schools")
-
-    fields = ["name", "grade", "school", "previous_school", "deviation_value", "target_level"]
-    for f in fields:
-        if f in data and hasattr(student, f):
-            # adminは校舎を変更できない保護
-            if f == "school" and current_user.role == 'admin' and data[f] != current_user.school:
-                continue
-            setattr(student, f, data[f])
-
-    # 講師設定の更新
-    # 既存の紐付けを一度削除してから再登録する方式で更新
-    
-    # メイン講師 (is_main=1) の更新
-    if "main_instructor_id" in data:
-        # 既存のメイン講師を削除
-        db.query(models.StudentInstructor).filter(
-            models.StudentInstructor.student_id == student_id,
-            models.StudentInstructor.is_main == 1
-        ).delete()
-        
-        # 新しいメイン講師を追加
-        if data["main_instructor_id"]:
-            db.add(models.StudentInstructor(
-                student_id=student_id, 
-                user_id=data["main_instructor_id"], 
-                is_main=1
-            ))
-
-    # サブ講師 (is_main=0) の更新
-    if "sub_instructor_ids" in data and isinstance(data["sub_instructor_ids"], list):
-        # 既存のサブ講師を削除
-        db.query(models.StudentInstructor).filter(
-            models.StudentInstructor.student_id == student_id,
-            models.StudentInstructor.is_main == 0
-        ).delete()
-        
-        # 新しいサブ講師を追加
-        for sub_id in data["sub_instructor_ids"]:
-            if sub_id:
-                db.add(models.StudentInstructor(
-                    student_id=student_id, 
-                    user_id=sub_id, 
-                    is_main=0
-                ))
-
-    db.commit()
+    crud_student.update_student(db, student_id, data, current_user)
     return {"status": "updated"}
 
 @router.delete("/students/{student_id}")
 def delete_student(
-    student_id: int, 
-    db: Session = Depends(get_db),
-    # 🌟 これを必ず追加して、AdminとDeveloper以外は削除できないようにする！
-    current_user: models.User = Depends(deps.get_current_admin_user)
+    student_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(deps.get_current_admin_user)
 ):
-    student = db.query(models.Student).filter(models.Student.id == student_id).first()
-    
-    # adminは別校舎の生徒を削除できないようにする保護（任意）
-    if student and current_user.role == 'admin' and student.school != current_user.school:
-        raise HTTPException(status_code=403, detail="Cannot delete students from other schools")
-
-    if student:
-        db.delete(student)
-        db.commit()
+    crud_student.delete_student(db, student_id, current_user)
     return {"status": "deleted"}
 
 @router.get("/inactive-users")

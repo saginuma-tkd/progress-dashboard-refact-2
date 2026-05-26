@@ -1,86 +1,339 @@
+# backend/app/crud/crud_progress.py
+import json
 from sqlalchemy.orm import Session
-from sqlalchemy.dialects.postgresql import insert
-from app.models.models import Progress, MasterTextbook
-from app.schemas.schemas import ProgressCreate, ProgressUpdate
-from typing import List
+from sqlalchemy import desc
+from typing import Optional
+from datetime import timedelta, datetime
+from app.models.models import Progress, MasterTextbook, Student, AuditLog, EikenResult, User
+from app.schemas.schemas import ProgressBatchCreate, ProgressUpdate
 
-def get_student_progress(db: Session, student_id: int):
-    # Join with MasterTextbook to get default duration if needed, 
-    # but the logic in original app had a complex coalesce.
-    # We will try to fetch Progress and map it.
-    # The original app also had 'level_deviation_map' adjustment logic.
-    # We should probably move that logic to the Service layer or this CRUD.
-    # For now, let's just return the raw progress records plus textbook info.
-    
-    results = db.query(Progress, MasterTextbook).outerjoin(
-        MasterTextbook, 
-        (Progress.book_name == MasterTextbook.book_name) & 
-        (Progress.subject == MasterTextbook.subject) & 
-        (Progress.level == MasterTextbook.level)
-    ).filter(Progress.student_id == student_id).all()
-    
-    return results
+def get_progress_list_by_student(db: Session, student_id: int):
+    """生徒の進捗一覧を取得（GET /list/{student_id} 用）"""
+    return db.query(Progress).filter(Progress.student_id == student_id).all()
 
-def update_student_progress(db: Session, student_id: int, progress_updates: List[ProgressUpdate]):
-    # Using Postgres UPSERT (ON CONFLICT)
-    # This requires using the underlying table or core insert construct with ON CONFLICT
+def add_progress_batch(db: Session, data: ProgressBatchCreate):
+    """進捗の一括追加と監査ログ記録（POST /progress/batch 用）"""
+    added_items = []
+    added_book_names = []
+
+    # マスターテキストからの追加
+    for book_id in data.book_ids:
+        master_book = db.query(MasterTextbook).filter(MasterTextbook.id == book_id).first()
+        if not master_book: continue
+        exists = db.query(Progress).filter(Progress.student_id == data.student_id, Progress.book_name == master_book.book_name).first()
+        if exists: continue
+        new_progress = Progress(
+            student_id=data.student_id, subject=master_book.subject, level=master_book.level,
+            book_name=master_book.book_name, duration=master_book.duration,
+            is_planned=True, is_done=False, completed_units=0, total_units=1 
+        )
+        db.add(new_progress)
+        added_items.append(new_progress)
+        added_book_names.append(master_book.book_name)
+
+    # カスタムテキストの追加
+    for custom in data.custom_books:
+        exists = db.query(Progress).filter(Progress.student_id == data.student_id, Progress.book_name == custom.book_name).first()
+        if exists: continue
+        new_progress = Progress(
+            student_id=data.student_id, subject=custom.subject, level=custom.level,
+            book_name=custom.book_name, duration=custom.duration,
+            is_planned=True, is_done=False, completed_units=0, total_units=1 
+        )
+        db.add(new_progress)
+        added_items.append(new_progress)
+        added_book_names.append(custom.book_name)
     
-    # We'll translate the logic from `add_or_update_student_progress`
-    
-    records = []
-    for update in progress_updates:
-        update_data = update.dict(exclude_unset=True)
-        # Assuming validation is done, ensure IDs match
-        
-        # Original logic: duration = COALESCE(EXCLUDED.duration, progress.duration)
-        # Postgres `insert(...).on_conflict_do_update(...)`
-        
-        # For simplicity in SQLAlchemy ORM, we might iterate and merge,
-        # but bulk operations are better with core.
-        
-        record = {
-            "student_id": student_id,
-            "subject": update.subject,
-            "level": update.level,
-            "book_name": update.book_name,
-            "duration": update.duration,
-            "is_planned": update.is_planned,
-            "is_done": update.is_done,
-            "completed_units": update.completed_units if update.completed_units is not None else 0,
-            "total_units": update.total_units if update.total_units is not None else 1
+    # 🌟 監査ログの記録
+    if added_items:
+        student = db.query(Student).filter(Student.id == data.student_id).first()
+        student_name = student.name if student else f"ID:{data.student_id}"
+
+        details_dict = {
+            "student_name": student_name,
+            "book_name": " / ".join(added_book_names),
+            "completed": f"新規一括追加（計 {len(added_items)} 冊）"
         }
-        records.append(record)
         
-    if not records:
-        return 0
+        audit_log = AuditLog(
+            user_id=None, # バッチ処理の起因ユーザーが必要なら引数で受け取るよう要改修
+            action="ADD_PROGRESS_BATCH",
+            branch_id=None,
+            details=json.dumps(details_dict, ensure_ascii=False)
+        )
+        db.add(audit_log)
 
-    stmt = insert(Progress).values(records)
+    db.commit()
+    return added_items
+
+def update_progress(db: Session, row_id: int, update_data: ProgressUpdate, current_user_id: int):
+    """進捗の更新と監査ログ記録（PATCH /progress/{row_id} 用）"""
+    progress_item = db.query(Progress).filter(Progress.id == row_id).first()
+    if not progress_item: 
+        return None
     
-    # Define what to update on conflict
-    # We update everything provided.
-    # note: "duration" logic in original was strict about maintaining existing if None passed?
-    # Original: "duration = COALESCE(EXCLUDED.duration, progress.duration)"
+    old_completed = progress_item.completed_units or 0
+    progress_item.completed_units = update_data.completed_units
+    progress_item.total_units = update_data.total_units 
+    db.add(progress_item)
     
-    update_dict = {
-        "is_planned": stmt.excluded.is_planned,
-        "is_done": stmt.excluded.is_done,
-        "completed_units": stmt.excluded.completed_units,
-        "total_units": stmt.excluded.total_units
+    # 🌟 監査ログの記録
+    student = db.query(Student).filter(Student.id == progress_item.student_id).first()
+    student_name = student.name if student else f"ID:{progress_item.student_id}"
+
+    details_dict = {
+        "student_name": student_name,
+        "book_name": progress_item.book_name,
+        "completed": f"{old_completed} → {update_data.completed_units} / {update_data.total_units}"
     }
     
-    # If duration is in the update, we set it, otherwise we leave it? 
-    # In the constructed 'record', duration is there (None if not provided in Pydantic defaults or passed as None).
-    # If we want to preserve existing duration if new is None, we use coalesce.
-    # But SQLAlchemy expression would be func.coalesce(stmt.excluded.duration, Progress.duration)
-    
-    from sqlalchemy import func
-    update_dict["duration"] = func.coalesce(stmt.excluded.duration, Progress.duration)
-
-    stmt = stmt.on_conflict_do_update(
-        constraint='_student_prog_uc', # Matches the name in models.py
-        set_=update_dict
+    audit_log = AuditLog(
+        user_id=current_user_id,
+        action="UPDATE_PROGRESS",
+        branch_id=None,
+        details=json.dumps(details_dict, ensure_ascii=False)
     )
-    
-    db.execute(stmt)
+    db.add(audit_log)
+
     db.commit()
-    return len(records)
+    db.refresh(progress_item)
+    return progress_item
+
+def delete_progress(db: Session, row_id: int):
+    """進捗の削除と監査ログ記録（DELETE /progress/{row_id} 用）"""
+    progress_item = db.query(Progress).filter(Progress.id == row_id).first()
+    if not progress_item: 
+        return False
+    
+    # 🌟 監査ログの記録
+    student = db.query(Student).filter(Student.id == progress_item.student_id).first()
+    student_name = student.name if student else f"ID:{progress_item.student_id}"
+
+    details_dict = {
+        "student_name": student_name,
+        "book_name": progress_item.book_name,
+        "completed": f"削除時の進捗: {progress_item.completed_units or 0} / {progress_item.total_units}"
+    }
+    
+    audit_log = AuditLog(
+        user_id=None,
+        action="DELETE_PROGRESS",
+        branch_id=None,
+        details=json.dumps(details_dict, ensure_ascii=False)
+    )
+    db.add(audit_log)
+    db.delete(progress_item)
+    db.commit()
+    return True
+
+def get_adjusted_duration(base_duration: float, book_level: str, student_dev: Optional[float]) -> float:
+    """偏差値に基づく学習時間の調整ロジック"""
+    if not base_duration or not student_dev or not book_level:
+        return base_duration or 0.0
+
+    level_map = {"基礎徹底": 50, "日大": 60, "MARCH": 70, "早慶": 75}
+    target_dev = None
+    for key, val in level_map.items():
+        if key in book_level:
+            target_dev = val
+            break
+            
+    if target_dev is None:
+        return base_duration
+
+    diff = target_dev - student_dev
+    adjusted_time = base_duration + base_duration * diff * 0.025
+    adjusted_time = max(0.1, adjusted_time)
+    return round(adjusted_time, 1)
+
+def get_dashboard_summary(db: Session, student_id: int):
+    """ダッシュボードのメイン集計処理"""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        student = db.query(User).filter(User.id == student_id).first()
+    if not student:
+        return None # 見つからない場合はNoneを返し、Router側でエラーを出す
+
+    student_dev = getattr(student, "deviation_value", None)
+    progress_items = db.query(Progress).filter(Progress.student_id == student_id).all()
+    
+    total_completed_time = 0.0
+    total_planned_time = 0.0
+    weighted_progress_sum = 0.0 
+    total_duration_for_rate = 0.0 
+    simple_ratios = [] 
+
+    if progress_items:
+        book_names = list(set([item.book_name for item in progress_items if item.book_name]))
+        masters = db.query(MasterTextbook).filter(MasterTextbook.book_name.in_(book_names)).all()
+        master_map = { (m.subject, m.book_name): m for m in masters }
+
+        for item in progress_items:
+            duration = item.duration
+            book_level = item.level
+            
+            if (duration is None or duration <= 0) and item.subject and item.book_name:
+                master_book = master_map.get((item.subject, item.book_name))
+                if master_book:
+                    duration = master_book.duration
+                    if not book_level:
+                        book_level = master_book.level
+            
+            duration = float(duration or 0)
+            adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
+
+            ratio = 0.0
+            if (item.total_units or 0) > 0:
+                ratio = min(1.0, (item.completed_units or 0) / item.total_units)
+            
+            simple_ratios.append(ratio)
+
+            if adjusted_duration > 0:
+                total_planned_time += adjusted_duration
+                total_completed_time += ratio * adjusted_duration
+                weighted_progress_sum += ratio * adjusted_duration
+                total_duration_for_rate += adjusted_duration
+
+    total_progress_pct = 0.0
+    if total_duration_for_rate > 0:
+        total_progress_pct = (weighted_progress_sum / total_duration_for_rate) * 100
+    elif len(simple_ratios) > 0:
+        total_progress_pct = (sum(simple_ratios) / len(simple_ratios)) * 100
+
+    latest_eiken = db.query(EikenResult).filter(EikenResult.student_id == student_id).order_by(desc(EikenResult.exam_date)).first()
+    
+    return {
+        "student_id": student.id if hasattr(student, 'id') else student_id,
+        "total_study_time": round(total_completed_time, 1),
+        "total_planned_time": round(total_planned_time, 1),
+        "progress_rate": round(total_progress_pct, 1),
+        "eiken_grade": latest_eiken.grade or "未登録" if latest_eiken else "未登録",
+        "eiken_score": str(latest_eiken.cse_score) if latest_eiken and latest_eiken.cse_score is not None else "-",
+        "eiken_date": str(latest_eiken.exam_date) if latest_eiken and latest_eiken.exam_date else "-"
+    }
+
+def get_subject_chart_data(db: Session, student_id: int):
+    """科目別進捗チャートのデータ生成"""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    student_dev = getattr(student, "deviation_value", None)
+    items = db.query(Progress).filter(Progress.student_id == student_id).all()
+    subject_stats = {} 
+    
+    all_masters = db.query(MasterTextbook).all()
+    master_map = { (m.subject, m.book_name): m for m in all_masters }
+
+    for item in items:
+        if (item.total_units or 0) <= 0: continue
+
+        subj = item.subject or "その他"
+        if subj not in subject_stats:
+            subject_stats[subj] = {"planned": 0.0, "completed": 0.0, "ratios": []}
+
+        duration = getattr(item, "duration", None)
+        book_level = getattr(item, "level", None) or ""
+        if (duration is None or duration <= 0) and item.subject and item.book_name:
+            master_book = master_map.get((item.subject, item.book_name))
+            if master_book:
+                duration = getattr(master_book, "duration", None)
+                if not book_level: book_level = getattr(master_book, "level", None) or ""
+                    
+        duration = float(duration or 0) 
+        adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
+        ratio = min(1.0, (item.completed_units or 0) / item.total_units)
+        subject_stats[subj]["ratios"].append(ratio * 100)
+        
+        if adjusted_duration > 0:
+            subject_stats[subj]["planned"] += adjusted_duration
+            subject_stats[subj]["completed"] += ratio * adjusted_duration
+            
+    result = []
+    for subj, stats in subject_stats.items():
+        if stats["planned"] > 0:
+            avg_progress = (stats["completed"] / stats["planned"]) * 100
+        elif stats["ratios"]:
+            avg_progress = sum(stats["ratios"]) / len(stats["ratios"])
+        else:
+            avg_progress = 0.0
+        result.append({"subject": subj, "progress": round(avg_progress, 1)})
+        
+    return result
+
+def get_study_time_summary(db: Session, current_user: User):
+    """管理者画面用: 学習予定時間と実績時間の乖離集計"""
+    query = db.query(Student).filter(Student.grade != "退塾済")
+    if current_user.role == "admin":
+        query = query.filter(Student.school == current_user.school)
+        
+    students = query.all()
+    student_ids = [s.id for s in students]
+    all_progress = db.query(Progress).filter(Progress.student_id.in_(student_ids)).all()
+    all_masters = db.query(MasterTextbook).all()
+    master_map = { (m.subject, m.book_name): m for m in all_masters }
+
+    summary_list = []
+    for student in students:
+        my_progress = [p for p in all_progress if p.student_id == student.id]
+        total_planned = 0.0
+        total_actual = 0.0
+        student_dev = getattr(student, "deviation_value", None)
+
+        for item in my_progress:
+            duration = getattr(item, "duration", None) or 0
+            book_level = getattr(item, "level", None) or ""
+            
+            if (duration is None or duration <= 0) and item.subject and item.book_name:
+                master_book = master_map.get((item.subject, item.book_name))
+                if master_book:
+                    duration = getattr(master_book, "duration", None) or 0
+                    if not book_level: book_level = getattr(master_book, "level", None) or ""
+            
+            duration = float(duration or 0.0)
+            adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
+            ratio = 0.0
+            if (item.total_units or 0) > 0:
+                ratio = min(1.0, (item.completed_units or 0) / item.total_units)
+
+            if adjusted_duration > 0:
+                total_planned += adjusted_duration
+                total_actual += ratio * adjusted_duration
+
+        diff = total_actual - total_planned
+        summary_list.append({
+            "student_id": student.id, "name": student.name, "grade": student.grade or "未設定",
+            "planned_time": round(total_planned, 1), "actual_time": round(total_actual, 1),
+            "diff": round(diff, 1)
+        })
+
+    summary_list.sort(key=lambda x: abs(x["diff"]), reverse=True)
+    return summary_list
+
+def get_inactive_users(db: Session):
+    """管理者用: 進捗未更新ユーザー抽出"""
+    threshold_date = datetime.now() - timedelta(days=30)
+    users = db.query(User).all()
+    inactive_users = []
+    
+    for u in users:
+        last_log = db.query(AuditLog).filter(
+            AuditLog.user_id == u.id,
+            AuditLog.action.like("%PROGRESS%")
+        ).order_by(desc(AuditLog.id)).first()
+        
+        user_name = getattr(u, 'username', getattr(u, 'name', f"ユーザー{u.id}"))
+        
+        if last_log:
+            last_date = getattr(last_log, 'created_at', None)
+            if last_date and last_date < threshold_date:
+                days_inactive = (datetime.now() - last_date).days
+                inactive_users.append({
+                    "user_id": u.id, "name": user_name,
+                    "last_update": last_date.strftime("%Y-%m-%d"), "days_inactive": days_inactive
+                })
+        else:
+            inactive_users.append({
+                "user_id": u.id, "name": user_name,
+                "last_update": "記録なし", "days_inactive": "30+"
+            })
+            
+    inactive_users.sort(key=lambda x: 9999 if str(x["days_inactive"]) == "30+" else int(x["days_inactive"]), reverse=True)
+    return inactive_users

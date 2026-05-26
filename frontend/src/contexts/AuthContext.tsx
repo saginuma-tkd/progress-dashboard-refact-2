@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useNavigate } from 'react-router-dom';
+import type { User } from '../types';
 
-interface User {
-    username: string;
+interface JwtPayload {
+    sub: string;
     role: 'developer' | 'admin' | 'user' | 'instructor' | 'student' | 'super_admin';
     school?: string;
+    exp?: number;
 }
 
 interface AuthContextType {
@@ -27,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (token) {
             // Decode token or fetch user profile (simplified: decode base64 payload)
             try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
+                const payload = JSON.parse(atob(token.split('.')[1])) as JwtPayload;
                 setUser({ username: payload.sub, role: payload.role, school: payload.school });
             } catch (e) {
                 console.error("Invalid token", e);
@@ -39,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const login = (token: string) => {
         localStorage.setItem('token', token);
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload = JSON.parse(atob(token.split('.')[1])) as JwtPayload;
         setUser({ username: payload.sub, role: payload.role, school: payload.school });
         navigate('/');
     };
