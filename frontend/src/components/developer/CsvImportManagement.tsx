@@ -5,29 +5,29 @@ import api from '../../lib/api';
 
 // --- Canvasプレビュー用 UIコンポーネントのモック ---
 const Card = ({ children, className = '' }: any) => (
-  <div className={`rounded-xl border bg-white shadow ${className}`}>{children}</div>
+    <div className={`rounded-xl border bg-white shadow ${className}`}>{children}</div>
 );
 const CardHeader = ({ children, className = '' }: any) => (
-  <div className={`flex flex-col space-y-1.5 p-6 ${className}`}>{children}</div>
+    <div className={`flex flex-col space-y-1.5 p-6 ${className}`}>{children}</div>
 );
 const CardTitle = ({ children, className = '' }: any) => (
-  <h3 className={`font-semibold leading-none tracking-tight ${className}`}>{children}</h3>
+    <h3 className={`font-semibold leading-none tracking-tight ${className}`}>{children}</h3>
 );
 const CardContent = ({ children, className = '' }: any) => (
-  <div className={`p-6 pt-0 ${className}`}>{children}</div>
+    <div className={`p-6 pt-0 ${className}`}>{children}</div>
 );
 
 const Button = ({ children, onClick, disabled, variant = 'default', className = '', ...props }: any) => {
-  const baseStyle = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:opacity-50 disabled:pointer-events-none h-10 px-4 py-2";
-  const variants: any = {
-    default: "bg-emerald-600 text-white hover:bg-emerald-700",
-    outline: "border border-gray-300 hover:bg-gray-100 bg-white text-gray-700"
-  };
-  return (
-    <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant] || variants.default} ${className}`} {...props}>
-      {children}
-    </button>
-  );
+    const baseStyle = "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:opacity-50 disabled:pointer-events-none h-10 px-4 py-2";
+    const variants: any = {
+        default: "bg-emerald-600 text-white hover:bg-emerald-700",
+        outline: "border border-gray-300 hover:bg-gray-100 bg-white text-gray-700"
+    };
+    return (
+        <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant] || variants.default} ${className}`} {...props}>
+            {children}
+        </button>
+    );
 };
 
 // // Canvasプレビュー用 APIモック
@@ -56,8 +56,8 @@ const FORMAT_GUIDES = {
     },
     user: {
         label: "講師(ユーザー)データ",
-        headers: "username, name, role, branch_id",
-        example: "suzuki_t, 鈴木一郎, admin, 1"
+        headers: "username, password, role, school",
+        example: "suzuki_t, password123, user, 鷺沼校"
     }
 } as const;
 
@@ -68,7 +68,7 @@ export default function CsvImportManagement() {
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [loading, setLoading] = useState(false);
-    
+
     // 結果表示用ステート
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -197,8 +197,8 @@ export default function CsvImportManagement() {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">登録するデータ種別</label>
                             {/* Selectコンポーネントの代わりにネイティブのselectを使用して依存を解消 */}
-                            <select 
-                                value={importType} 
+                            <select
+                                value={importType}
                                 onChange={(e) => {
                                     setImportType(e.target.value as ImportType);
                                     resetMessages();
@@ -240,52 +240,51 @@ export default function CsvImportManagement() {
             {/* 下部: ドロップエリア */}
             <Card className="shadow-sm">
                 <CardContent className="p-6">
-                    <div 
-                        className={`relative border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center text-center transition-all duration-200 ${
-                            isDragging 
-                                ? "border-emerald-500 bg-emerald-50 scale-[1.01]" 
+                    <div
+                        className={`relative border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center text-center transition-all duration-200 ${isDragging
+                                ? "border-emerald-500 bg-emerald-50 scale-[1.01]"
                                 : file ? "border-indigo-300 bg-indigo-50/30" : "border-gray-300 bg-gray-50 hover:bg-gray-100"
-                        }`}
+                            }`}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                     >
-                        <input 
-                            type="file" 
-                            accept=".csv" 
-                            className="hidden" 
+                        <input
+                            type="file"
+                            accept=".csv"
+                            className="hidden"
                             ref={fileInputRef}
                             onChange={handleFileChange}
                         />
 
                         {previewData && previewData.length > 0 && (
-                                    <div className="w-full text-left mb-6 bg-white border border-indigo-100 rounded-lg overflow-hidden shadow-sm">
-                                        <div className="bg-indigo-50/50 px-3 py-2 border-b border-indigo-100 text-xs font-bold text-indigo-800 flex justify-between items-center">
-                                            <span>データプレビュー (最初の3件)</span>
-                                            <span className="text-[10px] text-indigo-500 font-normal">※ブラウザ上での簡易表示です</span>
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-xs">
-                                                <thead className="bg-gray-50 border-b">
-                                                    <tr>
-                                                        {previewData[0].map((header, i) => (
-                                                            <th key={i} className="px-3 py-2 font-semibold text-gray-600 truncate max-w-[150px]">{header}</th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-100">
-                                                    {previewData.slice(1).map((row, rowIndex) => (
-                                                        <tr key={rowIndex} className="hover:bg-gray-50 transition-colors">
-                                                            {row.map((cell, cellIndex) => (
-                                                                <td key={cellIndex} className="px-3 py-2 text-gray-600 truncate max-w-[150px]">{cell}</td>
-                                                            ))}
-                                                        </tr>
+                            <div className="w-full text-left mb-6 bg-white border border-indigo-100 rounded-lg overflow-hidden shadow-sm">
+                                <div className="bg-indigo-50/50 px-3 py-2 border-b border-indigo-100 text-xs font-bold text-indigo-800 flex justify-between items-center">
+                                    <span>データプレビュー (最初の3件)</span>
+                                    <span className="text-[10px] text-indigo-500 font-normal">※ブラウザ上での簡易表示です</span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-gray-50 border-b">
+                                            <tr>
+                                                {previewData[0].map((header, i) => (
+                                                    <th key={i} className="px-3 py-2 font-semibold text-gray-600 truncate max-w-[150px]">{header}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {previewData.slice(1).map((row, rowIndex) => (
+                                                <tr key={rowIndex} className="hover:bg-gray-50 transition-colors">
+                                                    {row.map((cell, cellIndex) => (
+                                                        <td key={cellIndex} className="px-3 py-2 text-gray-600 truncate max-w-[150px]">{cell}</td>
                                                     ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
 
                         {!file ? (
                             <>
@@ -328,7 +327,7 @@ export default function CsvImportManagement() {
                             <div className="text-sm whitespace-pre-wrap font-medium">{errorMsg}</div>
                         </div>
                     )}
-                    
+
                     {successMsg && (
                         <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-3 text-emerald-800">
                             <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
