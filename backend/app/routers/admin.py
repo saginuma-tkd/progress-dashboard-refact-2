@@ -111,11 +111,16 @@ def delete_textbook(
 
 # --- Preset Management API ---
 
-# 1. プリセット一覧取得
+# 1. プリセット一覧取得 (全員見れるが、developer以外は自校舎のみ)
 @router.get("/presets")
 def get_admin_presets(session: Session = Depends(get_db), current_user: models.User = Depends(deps.get_current_user)):
-    presets = deps.get_tenant_query(session, models.BulkPreset, current_user).options(joinedload(models.BulkPreset.books)).all()
-    # シンプルな形式で返す
+    query = deps.get_tenant_query(session, models.BulkPreset, current_user).options(joinedload(models.BulkPreset.books))
+    
+    # 開発者以外は、自分の校舎のプリセットしか「見えない」
+    if current_user.role != "developer":
+        query = query.filter(models.BulkPreset.school_id == current_user.school_id)
+        
+    presets = query.all()
     return [
         {
             "id": p.id,
@@ -126,32 +131,36 @@ def get_admin_presets(session: Session = Depends(get_db), current_user: models.U
         for p in presets
     ]
 
-# 2. プリセット作成
+# 2. プリセット作成 (admin と developer のみ)
 @router.post("/presets")
 def create_preset(
     data: schemas.BulkPresetCreate,
     session: Session = Depends(get_db),
     current_user: models.User = Depends(deps.get_current_user)
 ):
-    # 重複チェック
-    existing = deps.get_tenant_query(session, models.BulkPreset, current_user).filter(
+    # 🌟 権限チェック: 一般講師(user)や生徒(student)は作成不可
+    if current_user.role not in ["developer", "admin"]:
+        raise HTTPException(status_code=403, detail="プリセットを作成する権限がありません")
+
+    query = deps.get_tenant_query(session, models.BulkPreset, current_user).filter(
         models.BulkPreset.subject == data.subject,
         models.BulkPreset.preset_name == data.preset_name
-    ).first()
-    
-    if existing:
-        raise HTTPException(status_code=400, detail="Preset already exists")
+    )
+    if current_user.role != "developer":
+        query = query.filter(models.BulkPreset.school_id == current_user.school_id)
+        
+    if query.first():
+        raise HTTPException(status_code=400, detail="このプリセット名は既に存在します")
 
-    # プリセット親作成
     new_preset = models.BulkPreset(
         subject=data.subject,
         preset_name=data.preset_name,
-        tenant_id=current_user.tenant_id
+        tenant_id=current_user.tenant_id,
+        school_id=current_user.school_id
     )
     session.add(new_preset)
-    session.flush() # ID生成のため
+    session.flush()
 
-    # 子（本）作成
     for book_name in data.book_names:
         new_book = models.BulkPresetBook(
             preset_id=new_preset.id,
@@ -162,10 +171,18 @@ def create_preset(
     session.commit()
     return {"message": "Preset created successfully"}
 
-# 3. プリセット削除
+# 3. プリセット削除 (admin と developer のみ)
 @router.delete("/presets/{preset_id}")
 def delete_preset(preset_id: int, session: Session = Depends(get_db), current_user: models.User = Depends(deps.get_current_user)):
-    preset = deps.get_tenant_query(session, models.BulkPreset, current_user).filter(models.BulkPreset.id == preset_id).first()
+    # 🌟 権限チェック: 一般講師(user)や生徒(student)は削除不可
+    if current_user.role not in ["developer", "admin"]:
+        raise HTTPException(status_code=403, detail="プリセットを削除する権限がありません")
+
+    query = deps.get_tenant_query(session, models.BulkPreset, current_user).filter(models.BulkPreset.id == preset_id)
+    if current_user.role != "developer":
+        query = query.filter(models.BulkPreset.school_id == current_user.school_id)
+        
+    preset = query.first()
     if not preset:
         raise HTTPException(status_code=404, detail="Preset not found")
     
@@ -173,6 +190,7 @@ def delete_preset(preset_id: int, session: Session = Depends(get_db), current_us
     session.commit()
     return {"message": "Deleted successfully"}
 
+# 4. プリセット更新 (admin と developer のみ)
 @router.put("/presets/{preset_id}")
 def update_preset(
     preset_id: int,
@@ -180,7 +198,15 @@ def update_preset(
     session: Session = Depends(get_db),
     current_user: models.User = Depends(deps.get_current_user)
 ):
-    preset = deps.get_tenant_query(session, models.BulkPreset, current_user).filter(models.BulkPreset.id == preset_id).first()
+    # 🌟 権限チェック: 一般講師(user)や生徒(student)は編集不可
+    if current_user.role not in ["developer", "admin"]:
+        raise HTTPException(status_code=403, detail="プリセットを編集する権限がありません")
+
+    query = deps.get_tenant_query(session, models.BulkPreset, current_user).filter(models.BulkPreset.id == preset_id)
+    if current_user.role != "developer":
+        query = query.filter(models.BulkPreset.school_id == current_user.school_id)
+        
+    preset = query.first()
     if not preset:
         raise HTTPException(status_code=404, detail="Preset not found")
 
@@ -190,7 +216,6 @@ def update_preset(
         preset.subject = data.subject
     
     if data.book_names is not None:
-        # 既存の紐付けを削除して再登録
         session.query(models.BulkPresetBook).filter(models.BulkPresetBook.preset_id == preset.id).delete()
         for book_name in data.book_names:
             new_book = models.BulkPresetBook(

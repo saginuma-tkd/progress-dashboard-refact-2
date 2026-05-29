@@ -46,14 +46,19 @@ def log_action(db: Session, user_id: int, action: str, branch_id: Optional[int] 
 # 3. 監査ログを取得するAPI (ここで権限の分岐！)
 # ==========================================
 @router.get("/logs")
-def get_audit_logs(session: Session = Depends(get_db)):
+def get_audit_logs(session: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # 🌟変更: Userテーブルをくっつけて名前を取得
-    logs = session.query(
+    query = session.query(
         AuditLog, 
         User.username.label("user_name")
     ).outerjoin(
         User, AuditLog.user_id == User.id
-    ).order_by(AuditLog.timestamp.desc()).all()
+    )
+
+    if current_user.role != "developer":
+        query = query.filter(AuditLog.branch_id == current_user.school_id)
+    
+    logs = query.order_by(AuditLog.timestamp.desc()).all()
     
     result = []
     for log, user_name in logs:

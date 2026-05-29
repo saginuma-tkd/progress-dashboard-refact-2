@@ -157,6 +157,8 @@ class UserResponse(BaseModel):
     id: int
     username: str
     role: str
+    school_id: Optional[int] = None  
+    tenant_id: Optional[int] = None
 
     class Config:
         from_attributes = True

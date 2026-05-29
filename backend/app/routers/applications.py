@@ -30,18 +30,32 @@ def create_transfer_request(
     current_user: models.User = Depends(get_current_user)
 ):
     student_id = get_student_id_for_user(db, current_user)
-    # まずは通常通りDBに保存
+    
+    # まずはDBに保存 (※ここで CRUD 側が自動的に担当講師を探して new_request.instructor_id に入れてくれます)
     new_request = crud_applications.create_transfer_request(db, request, current_user, student_id)
     
-    # 🌟 2. 振替申請用のLINE通知文面を作成して送信！
+    # 🌟 1. 生徒の名前を user_id から User テーブルを検索して取得
+    student_record = db.query(models.Student).filter(models.Student.id == student_id).first()
+    student_name = student_record.name if student_record else current_user.username
+
+    # 🌟 2. 担当講師名を取得 (CRUDでセットされた instructor_id から逆引き)
+    instructor_name = "未設定"
+    if new_request and new_request.instructor_id:
+        instructor_user = db.query(models.User).filter(models.User.id == new_request.instructor_id).first()
+        if instructor_user:
+            instructor_name = instructor_user.username
+
+    # 🌟 3. LINE通知文面を作成して送信
     if new_request:
         line_text = (
             "🔄【振替申請が届きました】\n"
-            f"生徒: {current_user.username}\n"
-            f"対象日: {request.original_date}\n"
-            f"振替希望日: {request.candidate_dates}\n"
-            f"理由: {request.reason or '特になし'}\n"
-            "塾長・講師の皆様、確認と承認をお願いします！"
+            f"👤 生徒: {student_name}\n"
+            f"👨‍🏫 担当講師: {instructor_name}\n"
+            f"❌ 対象日: {request.original_date}\n"
+            f"⭕ 振替希望: {request.candidate_dates}\n"
+            f"📝 理由: {request.reason or '特になし'}\n"
+            "----------------------------\n"
+            "ダッシュボードから内容を確認してください。"
         )
         send_line_message(line_text)
         
@@ -89,17 +103,28 @@ def create_absence_report(
     current_user: models.User = Depends(get_current_user)
 ):
     student_id = get_student_id_for_user(db, current_user)
-    # まずは通常通りDBに保存
     new_report = crud_applications.create_absence_report(db, report, current_user, student_id)
     
-    # 🌟 3. 欠席報告用のLINE通知文面を作成して送信！
+    # 生徒名を取得
+    student_record = db.query(models.Student).filter(models.Student.id == student_id).first()
+    student_name = student_record.name if student_record else current_user.username
+    
+    # 🌟 担当講師名を取得 (CRUDでセットされた instructor_id から逆引き)
+    instructor_name = "未設定"
+    if new_report and new_report.instructor_id:
+        instructor_user = db.query(models.User).filter(models.User.id == new_report.instructor_id).first()
+        if instructor_user:
+            instructor_name = instructor_user.username
+
     if new_report:
         line_text = (
             "🚨【欠席報告が届きました】\n"
-            f"生徒: {current_user.username}\n"
-            f"欠席日: {report.absence_date}\n"
-            f"理由: {report.reason}\n"
-            "ダッシュボードから確認と振替調整をお願いします！"
+            f"👤 生徒: {student_name}\n"
+            f"👨‍🏫 担当講師: {instructor_name}\n"
+            f"📅 欠席日: {report.absence_date}\n"
+            f"📝 理由: {report.reason}\n"
+            "----------------------------\n"
+            "ダッシュボードから内容を確認してください。"
         )
         send_line_message(line_text)
         
@@ -176,3 +201,23 @@ def delete_absence_report(
     db.delete(absence)
     db.commit()
     return None
+
+@router.get("/pending-count")
+def get_pending_count(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 生徒自身には未承認バッジは不要なので 0 を返す
+    if current_user.role == "student":
+        return {"count": 0}
+        
+    # 欠席と振替の pending をカウント
+    a_query = db.query(models.AbsenceReport).filter(models.AbsenceReport.status == "pending")
+    t_query = db.query(models.TransferRequest).filter(models.TransferRequest.status == "pending")
+    
+    # 🌟 開発者以外は、自分の校舎（テナント）の申請のみに絞り込む
+    if current_user.role != "developer":
+        a_query = a_query.filter(models.AbsenceReport.tenant_id == current_user.tenant_id)
+        t_query = t_query.filter(models.TransferRequest.tenant_id == current_user.tenant_id)
+
+    return {"count": a_query.count() + t_query.count()}

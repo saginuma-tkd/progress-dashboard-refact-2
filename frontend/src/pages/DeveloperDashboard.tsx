@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { 
+import {
   ShieldAlert, Database, KeyRound, Wrench,
   Users, HardDrive, AlertTriangle, CheckCircle2,
   UserCog, FileSpreadsheet, BookOpen, GraduationCap,
@@ -64,40 +64,40 @@ export default function DeveloperDashboard() {
 
   // --- 機能リスト定義 (全8機能) ---
   const features = [
-    { 
-      title: "校舎・ブランチ管理", 
-      icon: Landmark, 
-      description: "校舎（ブランチ）の開設と一覧の確認", 
+    {
+      title: "校舎・ブランチ管理",
+      icon: Landmark,
+      description: "校舎（ブランチ）の開設と一覧の確認",
       colorClass: "bg-teal-100 text-teal-600",
-      component: <SchoolManagement /> 
+      component: <SchoolManagement />
     },
-    { 
-      title: "権限・ロール管理", 
-      icon: UserCog, 
-      description: "Admin/User権限の付与・剥奪、アカウント発行", 
+    {
+      title: "権限・ロール管理",
+      icon: UserCog,
+      description: "Admin/User権限の付与・剥奪、アカウント発行",
       colorClass: "bg-indigo-100 text-indigo-600",
-      component: <RoleManagement /> 
+      component: <RoleManagement />
     },
-    { 
-      title: "学年一括更新", 
-      icon: AlertTriangle, 
-      description: "全生徒の学年を強制的に繰り上げ", 
+    {
+      title: "学年一括更新",
+      icon: AlertTriangle,
+      description: "全生徒の学年を強制的に繰り上げ",
       colorClass: "bg-orange-100 text-orange-600",
-      component: <GradeUpdateManagement onUpdate={fetchSystemInfo} /> 
+      component: <GradeUpdateManagement onUpdate={fetchSystemInfo} />
     },
-    { 
-      title: "パスワードリセット", 
-      icon: KeyRound, 
-      description: "ユーザーのパスワード強制上書き", 
+    {
+      title: "パスワードリセット",
+      icon: KeyRound,
+      description: "ユーザーのパスワード強制上書き",
       colorClass: "bg-purple-100 text-purple-600",
-      component: <div className="flex justify-center -mx-6 -mb-6 p-6 bg-gray-50/50"><PasswordResetForm /></div> 
+      component: <div className="flex justify-center -mx-6 -mb-6 p-6 bg-gray-50/50"><PasswordResetForm /></div>
     },
-    { 
-      title: "CSV一括インポート", 
-      icon: FileSpreadsheet, 
-      description: "生徒データや模試成績の一括登録", 
+    {
+      title: "CSV一括インポート",
+      icon: FileSpreadsheet,
+      description: "生徒データや模試成績の一括登録",
       colorClass: "bg-emerald-100 text-emerald-600",
-      component: <CsvImportManagement /> 
+      component: <CsvImportManagement />
     },
   ];
 
@@ -162,7 +162,7 @@ export default function DeveloperDashboard() {
                 </CardContent>
               </Card>
             </DialogTrigger>
-            <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-xl flex items-center gap-2">
                   <feature.icon className="w-5 h-5" />

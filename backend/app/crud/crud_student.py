@@ -3,6 +3,8 @@ from app.models import models
 from app.schemas.schemas import StudentCreate, StudentUpdate
 from typing import List
 from fastapi import HTTPException
+from passlib.context import CryptContext
+from app.core.security import get_password_hash
 
 def get_students_for_user(db: Session, user: models.User) -> List[models.Student]:
     # 🌟 爆速化の要：一覧取得時に、関連するデータ（instructorsなど）を一括で持ってくるように指示
@@ -35,15 +37,37 @@ def create_student(db: Session, data: dict, current_user: models.User):
     if current_user.role == 'admin':
         target_school = current_user.school
 
+    # 1. まず生徒レコードを作成
     new_student = models.Student(
-        name=data["name"], school=target_school, grade=data.get("grade"),
+        name=data["name"], 
+        school=target_school, grade=data.get("grade"),
         previous_school=data.get("previous_school"), deviation_value=data.get("deviation_value"),
         target_level=data.get("target_level")
     )
     db.add(new_student)
-    db.commit()
-    db.refresh(new_student)
+    db.flush() # 生徒IDが確定
 
+    # 2. 自動生成するログインIDと、共通パスワード
+    generated_username = f"student_{new_student.id}"
+    # 🌟 3. 先ほど直した標準のハッシュ関数を使う！
+    hashed_pw = get_password_hash("password123")
+
+    # 4. ログイン用の User レコードを作成
+    new_user = models.User(
+        username=generated_username,
+        password=hashed_pw,
+        role="student",
+        school=target_school
+    )
+    db.add(new_user)
+    db.flush() # ユーザーIDが確定
+
+    # 5. 生徒データとログイン用アカウントを紐付け
+    new_student.user_id = new_user.id
+    # 🌟 6. 【超重要】ここで強制的にUPDATEを予約させる！
+    db.flush() 
+
+    # 7. 講師設定
     if data.get("main_instructor_id"):
         db.add(models.StudentInstructor(student_id=new_student.id, user_id=data["main_instructor_id"], is_main=1))
     if "sub_instructor_ids" in data and isinstance(data["sub_instructor_ids"], list):
@@ -52,6 +76,8 @@ def create_student(db: Session, data: dict, current_user: models.User):
                 db.add(models.StudentInstructor(student_id=new_student.id, user_id=sub_id, is_main=0))
     
     db.commit()
+    db.refresh(new_student)
+    
     return new_student
 
 def update_student(db: Session, student_id: int, data: dict, current_user: models.User):

@@ -1,4 +1,3 @@
-// frontend/src/components/admin/StudentManagement.tsx
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -10,18 +9,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Edit, Trash2, Users, Search, UserPlus } from 'lucide-react';
 import api from '../../lib/api';
 import { toast } from 'sonner';
-import { useAuth } from '../../contexts/AuthContext'; // 追加
+import { useAuth } from '../../contexts/AuthContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 
 const GRADE_OPTIONS = ["中1", "中2", "中3", "高1", "高2", "高3", "既卒", "退塾済"];
 
 export default function StudentManagement() {
-    const { user } = useAuth(); // ログインユーザー情報を取得
+    const { user } = useAuth();
     const confirm = useConfirm();
     const [students, setStudents] = useState<any[]>([]);
     const [instructors, setInstructors] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
-    
+
     const [isOpen, setIsOpen] = useState(false);
     const [isNewMode, setIsNewMode] = useState(false);
     const [formData, setFormData] = useState<any>({ sub_instructor_ids: [] });
@@ -36,29 +35,28 @@ export default function StudentManagement() {
             ]);
             setStudents(sRes.data);
             setInstructors(iRes.data);
-        } catch (e) { 
+        } catch (e) {
             console.error(e);
-            toast.error("データ取得エラー"); 
+            toast.error("データ取得エラー");
         }
     };
 
     const handleNewClick = () => {
         setIsNewMode(true);
-        setFormData({ 
-            name: "", 
-            grade: "高1", 
-            // adminならログインユーザーの校舎をセット。developerなら一旦空文字にするか別途仕様を決定。
-            school: user?.role === 'admin' ? user.school : "", 
+        setFormData({
+            name: "",
+            grade: "高1",
+            school: user?.role === 'admin' ? user.school : "",
             previous_school: "",
-            main_instructor_id: 0, 
-            sub_instructor_ids: [] 
+            main_instructor_id: 0,
+            sub_instructor_ids: []
         });
         setIsOpen(true);
     };
 
     const handleEditClick = (student: any) => {
         setIsNewMode(false);
-        setFormData({ 
+        setFormData({
             ...student,
             sub_instructor_ids: student.sub_instructor_ids || []
         });
@@ -67,7 +65,7 @@ export default function StudentManagement() {
 
     const handleSave = async () => {
         if (!formData.name) { toast.error("氏名は必須です"); return; }
-        
+
         try {
             if (isNewMode) {
                 await api.post('/admin/students', formData);
@@ -78,31 +76,28 @@ export default function StudentManagement() {
             }
             setIsOpen(false);
             fetchData();
-        } catch (e) { 
+        } catch (e) {
             console.error(e);
-            toast.error("保存に失敗しました"); 
+            toast.error("保存に失敗しました");
         }
     };
 
     const handleDelete = async (id: number) => {
-        // 🚨 3. ダサい confirm を消して、await でリッチな confirm を呼ぶ！
         const isOk = await confirm({
             title: "生徒データを削除しますか？",
             message: "この操作は取り消せません。本当によろしいですか？",
             confirmText: "削除する",
-            isDestructive: true // ボタンが赤くなります
+            isDestructive: true
         });
-        
-        // キャンセルされたらここでストップ
+
         if (!isOk) return;
 
-        // OKの時だけここから下の処理が走る
         try {
             await api.delete(`/admin/students/${id}`);
             fetchData();
             toast.success("削除しました");
-        } catch (e) { 
-            toast.error("削除失敗"); 
+        } catch (e) {
+            toast.error("削除失敗");
         }
     };
 
@@ -121,20 +116,22 @@ export default function StudentManagement() {
         }
     };
 
-    const filteredStudents = students.filter(s => 
-        (s.name && s.name.includes(searchTerm)) || 
-        (s.school && s.school.includes(searchTerm))
-    ).sort((a, b) => {
-        // 学年の順序を GRADE_OPTIONS に基づいて取得
+    // 🌟 検索ロジックにログインID（student_XX）での部分一致検索を追加！
+    const filteredStudents = students.filter(s => {
+        const loginId = `student_${s.id}`;
+        return (
+            (s.name && s.name.includes(searchTerm)) ||
+            (s.school && s.school.includes(searchTerm)) ||
+            loginId.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }).sort((a, b) => {
         const indexA = GRADE_OPTIONS.indexOf(a.grade);
         const indexB = GRADE_OPTIONS.indexOf(b.grade);
-        // 設定されていない、または不正な学年の場合は最後に回す
         const orderA = indexA === -1 ? 99 : indexA;
         const orderB = indexB === -1 ? 99 : indexB;
         return orderA - orderB;
     });
 
-    // 役割ごとに講師をフィルタリング
     const mainInstructors = instructors.filter(i => i.role === 'admin');
     const subInstructors = instructors.filter(i => i.role === 'user');
 
@@ -148,7 +145,7 @@ export default function StudentManagement() {
                     <div className="flex gap-2">
                         <div className="relative w-48">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                            <Input placeholder="検索..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8" />
+                            <Input placeholder="名前・校舎・IDで検索..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8" />
                         </div>
                         <Button onClick={handleNewClick} size="sm"><UserPlus className="w-4 h-4 mr-2" /> 新規</Button>
                     </div>
@@ -156,9 +153,10 @@ export default function StudentManagement() {
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-0">
                 <Table>
-                    {/* ... 既存のテーブル部分 ... */}
                     <TableHeader className="bg-gray-50 sticky top-0 z-10">
                         <TableRow>
+                            {/* 🌟 1. テーブルヘッダーに「ログインID」を追加 */}
+                            <TableHead className="w-36">ログインID</TableHead>
                             <TableHead>氏名</TableHead>
                             <TableHead>学年</TableHead>
                             <TableHead>校舎</TableHead>
@@ -169,6 +167,10 @@ export default function StudentManagement() {
                     <TableBody>
                         {filteredStudents.map((s) => (
                             <TableRow key={s.id}>
+                                {/* 🌟 2. 各行の先頭に自動生成されるログインIDを表示（等幅フォントで見やすく） */}
+                                <TableCell className="font-mono text-sm text-blue-600 font-medium">
+                                    student_{s.id}
+                                </TableCell>
                                 <TableCell className="font-medium">{s.name}</TableCell>
                                 <TableCell>{s.grade}</TableCell>
                                 <TableCell>{s.school}</TableCell>
@@ -176,8 +178,8 @@ export default function StudentManagement() {
                                     <div className="text-xs">
                                         <div><span className="font-bold text-gray-500">主:</span> {s.main_instructor?.name || "-"}</div>
                                         <div className="text-gray-400">
-                                            <span className="font-bold">副:</span> {s.sub_instructors && s.sub_instructors.length > 0 
-                                                ? s.sub_instructors.map((sub: any) => sub.name).join(", ") 
+                                            <span className="font-bold">副:</span> {s.sub_instructors && s.sub_instructors.length > 0
+                                                ? s.sub_instructors.map((sub: any) => sub.name).join(", ")
                                                 : "-"}
                                         </div>
                                     </div>
@@ -201,14 +203,13 @@ export default function StudentManagement() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>氏名 *</Label>
-                                <Input value={formData.name || ""} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                <Input value={formData.name || ""} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                             </div>
                             <div className="space-y-2">
                                 <Label>校舎</Label>
-                                <Input 
-                                    value={formData.school || ""} 
-                                    onChange={e => setFormData({...formData, school: e.target.value})} 
-                                    // developer以外（admin等）は校舎を変更できないようにする
+                                <Input
+                                    value={formData.school || ""}
+                                    onChange={e => setFormData({ ...formData, school: e.target.value })}
                                     disabled={user?.role !== 'developer'}
                                     title={user?.role !== 'developer' ? "校舎の変更は開発者権限が必要です" : ""}
                                 />
@@ -217,39 +218,38 @@ export default function StudentManagement() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>学年</Label>
-                                <Select value={formData.grade} onValueChange={v => setFormData({...formData, grade: v})}>
+                                <Select value={formData.grade} onValueChange={v => setFormData({ ...formData, grade: v })}>
                                     <SelectTrigger><SelectValue placeholder="選択" /></SelectTrigger>
                                     <SelectContent>{GRADE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
                                 <Label>偏差値</Label>
-                                <Input type="number" value={formData.deviation_value || ""} onChange={e => setFormData({...formData, deviation_value: Number(e.target.value)})} />
+                                <Input type="number" value={formData.deviation_value || ""} onChange={e => setFormData({ ...formData, deviation_value: Number(e.target.value) })} />
                             </div>
                         </div>
-                        
+
                         <div className="space-y-2">
                             <Label>在籍校 / 出身校</Label>
-                            <Input 
-                                placeholder="例: 〇〇高校" 
-                                value={formData.previous_school || ""} 
-                                onChange={e => setFormData({...formData, previous_school: e.target.value})} 
+                            <Input
+                                placeholder="例: 〇〇高校"
+                                value={formData.previous_school || ""}
+                                onChange={e => setFormData({ ...formData, previous_school: e.target.value })}
                             />
                         </div>
-                        
+
                         <div className="space-y-2">
                             <Label>志望校レベル</Label>
-                            <Input value={formData.target_level || ""} onChange={e => setFormData({...formData, target_level: e.target.value})} />
+                            <Input value={formData.target_level || ""} onChange={e => setFormData({ ...formData, target_level: e.target.value })} />
                         </div>
-                        
+
                         <div className="grid gap-4 border-t pt-4">
                             <div className="space-y-2">
                                 <Label className="text-blue-600 font-bold">メイン講師 (校舎責任者: Admin)</Label>
-                                <Select value={String(formData.main_instructor_id || "0")} onValueChange={v => setFormData({...formData, main_instructor_id: Number(v)})}>
+                                <Select value={String(formData.main_instructor_id || "0")} onValueChange={v => setFormData({ ...formData, main_instructor_id: Number(v) })}>
                                     <SelectTrigger><SelectValue placeholder="未設定" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="0">未設定</SelectItem>
-                                        {/* admin 権限を持つユーザーのみ表示 */}
                                         {mainInstructors.map(i => <SelectItem key={i.id} value={String(i.id)}>{i.username}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -258,11 +258,10 @@ export default function StudentManagement() {
                             <div className="space-y-2">
                                 <Label className="text-gray-600 font-bold">サブ講師 (一般講師: User)</Label>
                                 <div className="border rounded-md p-3 h-32 overflow-y-auto bg-gray-50 grid grid-cols-2 gap-2">
-                                    {/* user 権限を持つユーザーのみ表示 */}
                                     {subInstructors.map(i => (
                                         <div key={i.id} className="flex items-center space-x-2">
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 id={`sub-${i.id}`}
                                                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                                 checked={formData.sub_instructor_ids?.includes(i.id)}

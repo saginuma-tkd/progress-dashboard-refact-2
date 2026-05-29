@@ -2,8 +2,8 @@
 import json
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import Optional
-from datetime import timedelta, datetime
+from typing import Optional, List
+from datetime import timedelta, datetime, timezone
 from app.models.models import Progress, MasterTextbook, Student, AuditLog, EikenResult, User
 from app.schemas.schemas import ProgressBatchCreate, ProgressUpdate
 
@@ -66,38 +66,64 @@ def add_progress_batch(db: Session, data: ProgressBatchCreate):
     db.commit()
     return added_items
 
-def update_progress(db: Session, row_id: int, update_data: ProgressUpdate, current_user_id: int):
-    """進捗の更新と監査ログ記録（PATCH /progress/{row_id} 用）"""
-    progress_item = db.query(Progress).filter(Progress.id == row_id).first()
-    if not progress_item: 
-        return None
-    
-    old_completed = progress_item.completed_units or 0
-    progress_item.completed_units = update_data.completed_units
-    progress_item.total_units = update_data.total_units 
-    db.add(progress_item)
-    
-    # 🌟 監査ログの記録
-    student = db.query(Student).filter(Student.id == progress_item.student_id).first()
-    student_name = student.name if student else f"ID:{progress_item.student_id}"
+def update_progress(db: Session, student_id: int, updates: List[ProgressUpdate], current_user_id: int):
+    """
+    進捗の一括更新と監査ログ記録（POST /{student_id}/progress 用）
+    フロントエンドから送られてくる配列（List[ProgressUpdate]）をループして一気に保存します。
+    """
+    # 🌟 ログ記録用に生徒の名前を1回だけ取得しておく（高速化）
+    student = db.query(Student).filter(Student.id == student_id).first()
+    student_name = student.name if student else f"ID:{student_id}"
 
-    details_dict = {
-        "student_name": student_name,
-        "book_name": progress_item.book_name,
-        "completed": f"{old_completed} → {update_data.completed_units} / {update_data.total_units}"
-    }
-    
-    audit_log = AuditLog(
-        user_id=current_user_id,
-        action="UPDATE_PROGRESS",
-        branch_id=None,
-        details=json.dumps(details_dict, ensure_ascii=False)
-    )
-    db.add(audit_log)
+    updated_count = 0
 
+    for update_data in updates:
+        # 1. データの特定（送られてきた progress の id を使って検索）
+        # ※ update_data に id が含まれている前提です
+        row_id = getattr(update_data, 'id', None)
+        if not row_id:
+            continue # IDがないデータはスキップ
+            
+        progress_item = db.query(Progress).filter(
+            Progress.id == row_id,
+            Progress.student_id == student_id # セキュリティ: 他人の進捗を書き換えないかチェック
+        ).first()
+        
+        if not progress_item: 
+            continue
+        
+        old_completed = progress_item.completed_units or 0
+        
+        # 変更がない場合はスキップして処理を軽くする
+        if old_completed == update_data.completed_units and progress_item.total_units == update_data.total_units:
+            continue
+
+        # 2. データの更新
+        progress_item.completed_units = update_data.completed_units
+        progress_item.total_units = update_data.total_units 
+        db.add(progress_item)
+        
+        # 3. 監査ログの記録
+        details_dict = {
+            "student_name": student_name,
+            "book_name": progress_item.book_name,
+            "completed": f"{old_completed} → {update_data.completed_units} / {update_data.total_units}"
+        }
+        
+        audit_log = AuditLog(
+            user_id=current_user_id,
+            action="UPDATE_PROGRESS",
+            branch_id=None,
+            details=json.dumps(details_dict, ensure_ascii=False)
+        )
+        db.add(audit_log)
+        
+        updated_count += 1
+
+    # 🌟 全てのループが終わった後に、1回だけまとめてDBに保存（超高速！）
     db.commit()
-    db.refresh(progress_item)
-    return progress_item
+    
+    return updated_count
 
 def delete_progress(db: Session, row_id: int):
     """進捗の削除と監査ログ記録（DELETE /progress/{row_id} 用）"""
@@ -307,10 +333,16 @@ def get_study_time_summary(db: Session, current_user: User):
     summary_list.sort(key=lambda x: abs(x["diff"]), reverse=True)
     return summary_list
 
-def get_inactive_users(db: Session):
+def get_inactive_users(db: Session, current_user: User):
     """管理者用: 進捗未更新ユーザー抽出"""
+    now_utc = datetime.now(timezone.utc)
     threshold_date = datetime.now() - timedelta(days=30)
-    users = db.query(User).all()
+    query = db.query(User).filter(User.role != 'student')
+    
+    if current_user.role != 'developer':
+        query = query.filter(User.school_id == current_user.school_id)
+        
+    users = query.all()
     inactive_users = []
     
     for u in users:

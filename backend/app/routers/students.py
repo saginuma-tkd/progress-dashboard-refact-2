@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, cast
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
@@ -79,7 +79,7 @@ def read_student_progress(
     # Logic to adjust duration based on deviation would happen here in a Service, 
     # then mapped to Schema.
     # For now, we return raw progress.
-    raw_results = crud_progress.get_student_progress(db, student_id)
+    raw_results = crud_progress.get_progress_list_by_student(db, student_id)
     
     # Map (Progress, MasterTextbook) tuple to Schema or Dict
     # Schema 'Progress' matches the model fields.
@@ -119,7 +119,13 @@ def update_student_progress(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    count = crud_progress.update_student_progress(db, student_id, progress)
+    # 🌟 リストのまま crud に丸投げし、ついでにユーザーIDも渡す
+    count = crud_progress.update_progress(
+        db=db, 
+        student_id=student_id, 
+        updates=progress, 
+        current_user_id=cast(int, current_user.id)
+    )
     return {"message": f"Updated {count} records"}
 
 class EikenUpdate(BaseModel):
@@ -141,7 +147,7 @@ def update_student_eiken(
     )
 
     if not eiken_result:
-        eiken_result = EikenResult(student_id=student_id, tenant_id=current_user.tenant_id)
+        eiken_result = EikenResult(student_id=student_id)
         db.add(eiken_result)
 
     # 連結文字列 "準2級 合格 / CSE 1950 / 2025-06-01" を分解

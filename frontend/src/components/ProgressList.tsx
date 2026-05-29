@@ -99,14 +99,21 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
   const handleUpdate = async () => {
     if (!editingItem) return;
     try {
-      await api.patch(`/dashboard/progress/${editingItem.id}`, {
-        completed_units: editCompleted,
-        total_units: editTotal
-      });
+      // 🌟 修正ポイント：patch -> post に変更し、URLを生徒IDベースに変更！
+      await api.post(`/students/${studentId}/progress`, [
+        {
+          id: editingItem.id, // 🌟 修正ポイント：progressID ではなく editingItem.id を使う
+          completed_units: editCompleted,
+          total_units: editTotal
+        }
+      ]);
       setEditingItem(null);
       fetchData();
       onUpdate?.();
-    } catch (e) { alert("更新失敗"); }
+    } catch (e) {
+      console.error(e);
+      alert("更新失敗");
+    }
   };
 
   // ★追加: 削除機能
@@ -512,8 +519,8 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
               key={subj}
               onClick={() => setSelectedSubject(subj)}
               className={`px-3 py-1 text-xs rounded-full transition-colors whitespace-nowrap border ${selectedSubject === subj
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-white text-muted-foreground border-gray-200 hover:bg-gray-100"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-white text-muted-foreground border-gray-200 hover:bg-gray-100"
                 }`}
             >
               {subj}

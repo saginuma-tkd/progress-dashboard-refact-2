@@ -1,7 +1,7 @@
 // frontend/src/components/developer/RoleManagement.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Shield, User, ShieldAlert, RefreshCw, AlertCircle, Landmark, UserPlus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Shield, User, ShieldAlert, RefreshCw, AlertCircle, Landmark, UserPlus, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react';
 import api from '../../lib/api';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ interface UserData {
   email: string;
   role: string;
   school_id: number | null;
+  school?: string; // 🌟 古いデータ用の文字列カラムも受け取れるように追加
 }
 
 interface SchoolData {
@@ -29,13 +30,14 @@ const RoleManagement: React.FC = () => {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // 🌟 新規ユーザー作成用のステート
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [role, setRole] = useState('user');
   const [schoolId, setSchoolId] = useState('');
   const [creating, setCreating] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
 
   const fetchData = async () => {
     try {
@@ -58,28 +60,24 @@ const RoleManagement: React.FC = () => {
     fetchData();
   }, []);
 
-  // 🌟 新規ユーザーの作成処理
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) return;
+    if (!username.trim()) return;
 
     setCreating(true);
     try {
       await api.post('/developer/users/', {
         username: username,
-        password: password,
         role: role,
         school_id: role === 'developer' ? null : (schoolId === "" ? null : Number(schoolId))
       });
-      
+
       toast.success(`アカウント「${username}」を作成しました`);
-      // フォームのクリア
       setUsername('');
-      setPassword('');
       setRole('user');
       setSchoolId('');
       setIsFormOpen(false);
-      fetchData(); // 一覧を再取得
+      fetchData();
     } catch (err: any) {
       console.error(err);
       toast.error(err.response?.data?.detail || 'ユーザーの作成に失敗しました');
@@ -88,10 +86,9 @@ const RoleManagement: React.FC = () => {
     }
   };
 
-  // 既存ユーザーの更新処理
   const handleUpdate = async (currentUser: UserData, newRole: string, newSchoolIdStr: string) => {
-    const newSchoolId = newRole === 'developer' ? null : 
-                        (newSchoolIdStr === "" ? null : Number(newSchoolIdStr));
+    const newSchoolId = newRole === 'developer' ? null :
+      (newSchoolIdStr === "" ? null : Number(newSchoolIdStr));
 
     const isRoleChanged = currentUser.role !== newRole;
 
@@ -120,12 +117,12 @@ const RoleManagement: React.FC = () => {
 
     setUpdatingId(currentUser.id);
     try {
-      await api.put(`/developer/users/${currentUser.id}/role`, { 
+      await api.put(`/developer/users/${currentUser.id}/role`, {
         role: newRole,
-        school_id: newSchoolId 
+        school_id: newSchoolId
       });
       toast.success('ユーザー情報を更新しました。');
-      fetchData(); 
+      fetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || '更新に失敗しました。');
       console.error(err);
@@ -142,6 +139,12 @@ const RoleManagement: React.FC = () => {
     }
   };
 
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = filterRole === 'all' || user.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
+
   if (loading) {
     return <div className="flex justify-center p-8"><RefreshCw className="w-6 h-6 animate-spin text-gray-400" /></div>;
   }
@@ -155,7 +158,7 @@ const RoleManagement: React.FC = () => {
         </div>
       )}
 
-      {/* 🌟 新規ユーザー作成アコーディオンフォーム */}
+      {/* 新規ユーザー作成フォーム */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
         <button
           onClick={() => setIsFormOpen(!isFormOpen)}
@@ -166,66 +169,59 @@ const RoleManagement: React.FC = () => {
           </span>
           {isFormOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
-        
+
         {isFormOpen && (
           <form onSubmit={handleCreateUser} className="p-4 border-t space-y-4 bg-white">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">ユーザー名（ログインID）</label>
-                <Input
-                  type="text"
-                  placeholder="例: sato_tokyo"
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  required
-                />
+                <label className="text-xs font-bold text-gray-600">ユーザー名</label>
+                <Input type="text" placeholder="例: sato_tokyo" value={username} onChange={e => setUsername(e.target.value)} required />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">初期パスワード</label>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">役割・権限 (Role)</label>
-                <select
-                  value={role}
-                  onChange={e => setRole(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
-                >
+                <label className="text-xs font-bold text-gray-600">役割・権限</label>
+                <select value={role} onChange={e => setRole(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
                   <option value="user">User (一般講師)</option>
                   <option value="admin">Admin (校舎長)</option>
                   <option value="developer">Developer (塾長)</option>
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-600">所属校舎 (Branch)</label>
-                <select
-                  value={schoolId}
-                  onChange={e => setSchoolId(e.target.value)}
-                  disabled={role === 'developer'}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                >
+                <label className="text-xs font-bold text-gray-600">所属校舎</label>
+                <select value={schoolId} onChange={e => setSchoolId(e.target.value)} disabled={role === 'developer'} className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
                   <option value="">未設定 (本部)</option>
                   {schools.map(school => (
-                    <option key={school.id} value={school.id}>{school.name}</option>
+                    <option key={school.id} value={String(school.id)}>{school.name}</option>
                   ))}
                 </select>
               </div>
             </div>
-            <div className="flex justify-end pt-2">
-              <Button type="submit" disabled={creating || !username.trim() || !password.trim()} className="font-bold">
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs text-gray-500">※初期パスワードは「password123」で統一されます。</p>
+              <Button type="submit" disabled={creating || !username.trim()} className="font-bold">
                 {creating ? 'アカウント作成中...' : 'アカウントを発行する'}
               </Button>
             </div>
           </form>
         )}
       </div>
-      
+
+      {/* 検索バー＆フィルター */}
+      <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 border rounded-lg shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input type="text" placeholder="ユーザー名で検索..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 bg-gray-50/50" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-gray-500" />
+          <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="h-10 w-48 rounded-md border border-input bg-gray-50/50 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+            <option value="all">すべての権限を表示</option>
+            <option value="user">User (一般講師)</option>
+            <option value="admin">Admin (校舎長)</option>
+            <option value="developer">Developer (塾長)</option>
+          </select>
+        </div>
+      </div>
+
       {/* ユーザー一覧テーブル部分 */}
       <div className="overflow-x-auto border rounded-lg shadow-sm">
         <table className="w-full text-sm text-left text-gray-500">
@@ -234,49 +230,66 @@ const RoleManagement: React.FC = () => {
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">ユーザー名</th>
               <th className="px-4 py-3">権限 (Role)</th>
-              <th className="px-4 py-3">所属校舎 (Branch)</th>
+              <th className="px-4 py-3 min-w-[200px]">所属校舎 (Branch)</th>
             </tr>
           </thead>
           <tbody>
-            {users.map(user => (
-              <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">#{user.id}</td>
-                <td className="px-4 py-3 font-medium text-gray-900">{user.username}</td>
-                
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {getRoleIcon(user.role)}
-                    <select
-                      value={user.role?.toLowerCase() || 'user'}
-                      onChange={(e) => handleUpdate(user, e.target.value, user.school_id ? String(user.school_id) : "")}
-                      disabled={updatingId === user.id}
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 disabled:opacity-50 cursor-pointer"
-                    >
-                      <option value="user">User (一般講師)</option>
-                      <option value="admin">Admin (校舎長)</option>
-                      <option value="developer">Developer (塾長)</option>
-                    </select>
-                  </div>
-                </td>
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map(user => (
+                <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-900">#{user.id}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{user.username}</td>
 
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Landmark className="w-4 h-4 text-gray-400" />
-                    <select
-                      value={user.school_id || ""}
-                      onChange={(e) => handleUpdate(user, user.role, e.target.value)}
-                      disabled={user.role === 'developer' || updatingId === user.id}
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 disabled:opacity-50 cursor-pointer"
-                    >
-                      <option value="">未設定 (本部)</option>
-                      {schools.map(school => (
-                        <option key={school.id} value={school.id}>{school.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {getRoleIcon(user.role)}
+                      <select
+                        value={user.role?.toLowerCase() || 'user'}
+                        onChange={(e) => handleUpdate(user, e.target.value, user.school_id ? String(user.school_id) : "")}
+                        disabled={updatingId === user.id}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 disabled:opacity-50 cursor-pointer"
+                      >
+                        <option value="user">User (一般講師)</option>
+                        <option value="admin">Admin (校舎長)</option>
+                        <option value="developer">Developer (塾長)</option>
+                      </select>
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <Landmark className="w-4 h-4 text-gray-400" />
+                        {/* 🌟 修正: IDの型を確実に「文字列」に揃えてバインディングする */}
+                        <select
+                          value={user.school_id != null ? String(user.school_id) : ""}
+                          onChange={(e) => handleUpdate(user, user.role, e.target.value)}
+                          disabled={user.role === 'developer' || updatingId === user.id}
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 disabled:opacity-50 cursor-pointer"
+                        >
+                          <option value="">未設定 (本部)</option>
+                          {schools.map(school => (
+                            <option key={school.id} value={String(school.id)}>{school.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* 🌟 追加: IDは空だけど、文字の校舎名（school）だけは持っている古いデータへの対策 */}
+                      {!user.school_id && user.school && (
+                        <span className="text-[10px] text-red-500 font-bold ml-6">
+                          ※データ未紐付 (文字情報: {user.school})
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                  条件に一致するユーザーが見つかりません
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

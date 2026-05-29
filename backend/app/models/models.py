@@ -113,7 +113,12 @@ class BulkPreset(Base):
     subject: Mapped[str] = mapped_column(String, nullable=False)
     preset_name: Mapped[str] = mapped_column(String, nullable=False)
 
-    __table_args__ = (UniqueConstraint('subject', 'preset_name', name='_subject_preset_uc'),)
+    # 🌟 文字列の school をやめ、school_id (外部キー) に変更！
+    tenant_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
+    school_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("schools.id", ondelete="CASCADE"), nullable=True)
+
+    # 🌟 ユニーク制約も school_id に変更
+    __table_args__ = (UniqueConstraint('subject', 'preset_name', 'tenant_id', 'school_id', name='_subject_preset_scope_uc'),)
 
     books = relationship("BulkPresetBook", back_populates="preset", cascade="all, delete-orphan")
 
@@ -395,7 +400,7 @@ class AbsenceReport(Base):
     reason: Mapped[Optional[str]] = mapped_column(Text)
     report_info: Mapped[Optional[str]] = mapped_column(Text)
     
-    status: Mapped[str] = mapped_column(String, nullable=False, default="acknowledged")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

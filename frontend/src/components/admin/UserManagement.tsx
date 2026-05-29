@@ -20,15 +20,15 @@ export default function UserManagement() {
     const [schools, setSchools] = useState<string[]>([]); // 校舎リスト用のState
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editForm, setEditForm] = useState<any>({});
-    
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [createForm, setCreateForm] = useState({ username: "", school: "", password: "", role: "user" }); // デフォルトをuserに
 
     // 自由入力かドロップダウンかを選択するフラグ
-    const [isNewSchool, setIsNewSchool] = useState(false); 
+    const [isNewSchool, setIsNewSchool] = useState(false);
 
-    useEffect(() => { 
-        fetchUsers(); 
+    useEffect(() => {
+        fetchUsers();
         fetchSchools(); // コンポーネントマウント時に校舎リストを取得
     }, []);
 
@@ -48,8 +48,8 @@ export default function UserManagement() {
     };
 
     const handleCreate = async () => {
-        if (!createForm.username || !createForm.password) {
-            toast.error("ユーザー名とパスワードは必須です");
+        if (!createForm.username) {
+            toast.error("ユーザー名は必須です");
             return;
         }
         try {
@@ -73,30 +73,30 @@ export default function UserManagement() {
         } catch (e) { toast.error("更新失敗"); }
     };
 
-const handleDelete = async (id: number) => {
+    const handleDelete = async (id: number) => {
         const isOk = await confirm({
             title: "講師データを削除しますか？",
             message: "この操作は取り消せません。本当によろしいですか？",
             confirmText: "削除する",
-            isDestructive: true 
+            isDestructive: true
         });
-        
+
         if (!isOk) return;
 
         try {
             // 🚨 修正1: students ではなく users (講師) のエンドポイントに修正！
             await api.delete(`/admin/users/${id}`);
-            
+
             // 🚨 修正2: fetchData を消して、以下の2つに差し替え！
             fetchUsers();
             fetchSchools();
-            
+
             toast.success("削除しました");
-        } catch (e) { 
-            toast.error("削除失敗"); 
+        } catch (e) {
+            toast.error("削除失敗");
         }
     };
-    
+
     return (
         <Card className="h-full flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -125,20 +125,20 @@ const handleDelete = async (id: number) => {
                                 {editingId === u.id ? (
                                     <>
                                         <TableCell>
-                                            <Input 
-                                                value={editForm.username} 
-                                                onChange={e => setEditForm({...editForm, username: e.target.value})} 
+                                            <Input
+                                                value={editForm.username}
+                                                onChange={e => setEditForm({ ...editForm, username: e.target.value })}
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            <Input 
-                                                value={editForm.school || ""} 
-                                                onChange={e => setEditForm({...editForm, school: e.target.value})} 
+                                            <Input
+                                                value={editForm.school || ""}
+                                                onChange={e => setEditForm({ ...editForm, school: e.target.value })}
                                                 placeholder="例: 東京校"
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            <Select value={editForm.role} onValueChange={v => setEditForm({...editForm, role: v})}>
+                                            <Select value={editForm.role} onValueChange={v => setEditForm({ ...editForm, role: v })}>
                                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="admin">Admin</SelectItem>
@@ -173,7 +173,7 @@ const handleDelete = async (id: number) => {
                                         <TableCell><span className="px-2 py-1 rounded bg-blue-100 text-xs">{u.role}</span></TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-1">
-                                                <Button size="icon" variant="ghost" onClick={() => { setEditingId(u.id); setEditForm({...u}); }}>
+                                                <Button size="icon" variant="ghost" onClick={() => { setEditingId(u.id); setEditForm({ ...u }); }}>
                                                     <Edit className="w-4 h-4" />
                                                 </Button>
                                                 <Button size="icon" variant="ghost" className="text-red-500" onClick={() => handleDelete(u.id)}>
@@ -195,22 +195,22 @@ const handleDelete = async (id: number) => {
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
                             <Label>ユーザー名 (必須)</Label>
-                            <Input 
-                                value={createForm.username} 
-                                onChange={e => setCreateForm({...createForm, username: e.target.value})} 
+                            <Input
+                                value={createForm.username}
+                                onChange={e => setCreateForm({ ...createForm, username: e.target.value })}
                             />
                         </div>
-                        <div className="space-y-2">
+                        {/* <div className="space-y-2">
                             <Label>パスワード (必須)</Label>
                             <Input 
                                 type="password" 
                                 value={createForm.password} 
                                 onChange={e => setCreateForm({...createForm, password: e.target.value})} 
                             />
-                        </div>
+                        </div> */}
                         <div className="space-y-2">
                             <Label>権限 (ロール)</Label>
-                            <Select value={createForm.role} onValueChange={v => setCreateForm({...createForm, role: v})}>
+                            <Select value={createForm.role} onValueChange={v => setCreateForm({ ...createForm, role: v })}>
                                 <SelectTrigger><SelectValue placeholder="権限を選択" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="admin">管理者 (Admin)</SelectItem>
@@ -223,37 +223,37 @@ const handleDelete = async (id: number) => {
                                 <Label>所属校舎</Label>
                                 {/* 🚨 Developer権限の時だけ「新しい校舎を追加する」ボタンを表示 */}
                                 {user?.role === 'developer' && schools.length > 0 && (
-                                    <Button 
-                                        variant="link" 
-                                        className="h-auto p-0 text-xs text-blue-600" 
+                                    <Button
+                                        variant="link"
+                                        className="h-auto p-0 text-xs text-blue-600"
                                         onClick={() => {
                                             setIsNewSchool(!isNewSchool);
-                                            setCreateForm({...createForm, school: ""});
+                                            setCreateForm({ ...createForm, school: "" });
                                         }}
                                     >
                                         {isNewSchool ? "リストから選択する" : "新しい校舎を入力する"}
                                     </Button>
                                 )}
                             </div>
-                            
+
                             {/* 🚨 Admin権限の場合は自分の校舎で固定して入力をロックする */}
                             {user?.role === 'admin' ? (
-                                <Input 
-                                    value={user.school || ""} 
-                                    disabled 
+                                <Input
+                                    value={user.school || ""}
+                                    disabled
                                     className="bg-gray-100 text-gray-500 cursor-not-allowed"
                                     title="管理者は自校舎のみユーザーを作成できます"
                                 />
                             ) : (
                                 /* Developer権限の場合は今まで通り自由に選択・入力できる */
                                 isNewSchool || schools.length === 0 ? (
-                                    <Input 
-                                        value={createForm.school} 
-                                        onChange={e => setCreateForm({...createForm, school: e.target.value})} 
+                                    <Input
+                                        value={createForm.school}
+                                        onChange={e => setCreateForm({ ...createForm, school: e.target.value })}
                                         placeholder="新しい校舎名を入力"
                                     />
                                 ) : (
-                                    <Select value={createForm.school} onValueChange={v => setCreateForm({...createForm, school: v})}>
+                                    <Select value={createForm.school} onValueChange={v => setCreateForm({ ...createForm, school: v })}>
                                         <SelectTrigger><SelectValue placeholder="校舎を選択してください" /></SelectTrigger>
                                         <SelectContent>
                                             {schools.map(school => (

@@ -6,7 +6,7 @@ import { updateTransferStatus, updateAbsenceStatus } from '../../api/application
 import { useApplications } from '../../hooks/useApplications';
 import { toast } from 'sonner';
 import { Badge } from '../../components/ui/badge';
-import { Check, X, Clock, ShieldAlert, MessageSquare, Trash2, Search, Filter } from 'lucide-react';
+import { Check, X, Clock, ShieldAlert, MessageSquare, Trash2, Search, Filter, BellRing } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,6 +40,11 @@ export default function ApplicationReviewPage() {
   const transfers = data?.transfers || [];
   const absences = data?.absences || [];
 
+  // 🌟 追加: 現在表示されている未承認の合計件数を計算
+  const pendingTransfersCount = transfers.filter(t => t.status === 'pending').length;
+  const pendingAbsencesCount = absences.filter(a => a.status === 'pending').length;
+  const totalPendingCount = pendingTransfersCount + pendingAbsencesCount;
+
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [selectedTransferId, setSelectedTransferId] = useState<number | null>(null);
   const [approvedDate, setApprovedDate] = useState('');
@@ -63,7 +68,7 @@ export default function ApplicationReviewPage() {
           const iData = Array.isArray(instructorsRes.data)
             ? instructorsRes.data
             : (instructorsRes.data?.items || []);
-          setInstructorList(iData.filter((i: any) => i.role === 'user')); // ← ここだけ変更
+          setInstructorList(iData.filter((i: any) => i.role === 'user'));
         }
       } catch (e) {
         console.error("リストの取得に失敗しました", e);
@@ -71,7 +76,7 @@ export default function ApplicationReviewPage() {
     };
 
     fetchLists();
-  }, [user]);
+  }, [user, isAdmin]);
 
   const deleteTransferMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/applications/transfer/${id}`),
@@ -129,8 +134,16 @@ export default function ApplicationReviewPage() {
     <div className="container mx-auto py-2 md:py-8 px-0 md:px-4 max-w-6xl">
       <div className="mb-6 flex flex-col md:flex-row md:justify-between md:items-center gap-4 px-4 md:px-0">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-xl md:text-3xl font-bold text-gray-900">申請の確認・承認</h1>
+          <div className="flex flex-wrap items-center gap-3 mb-2">
+            <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+              申請の確認・承認
+              {/* 🌟 追加: タイトル横の未処理件数バッジ */}
+              {totalPendingCount > 0 && (
+                <span className="bg-red-50 text-red-600 border border-red-200 text-xs md:text-sm px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm animate-pulse">
+                  <BellRing className="w-3.5 h-3.5" /> 未処理 {totalPendingCount}件
+                </span>
+              )}
+            </h1>
             {isInstructor && (
               <Badge className="bg-blue-100 text-blue-800 border-blue-200 flex items-center gap-1">
                 <ShieldAlert className="w-3 h-3" /> 担当生徒のみ
@@ -162,17 +175,17 @@ export default function ApplicationReviewPage() {
             <TabsList className="grid w-full grid-cols-2 max-w-md h-auto p-1 bg-gray-200/50 rounded-lg">
               <TabsTrigger value="transfer" className="py-2 text-xs md:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all flex items-center justify-center gap-2">
                 振替申請
-                {transfers.filter(t => t.status === 'pending').length > 0 && filterStatus === 'all' && (
+                {pendingTransfersCount > 0 && (
                   <span className="bg-red-500 text-white text-[10px] md:text-xs px-2 py-0.5 rounded-full">
-                    {transfers.filter(t => t.status === 'pending').length}
+                    {pendingTransfersCount}
                   </span>
                 )}
               </TabsTrigger>
               <TabsTrigger value="absence" className="py-2 text-xs md:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all flex items-center justify-center gap-2">
                 欠席報告
-                {absences.filter(a => a.status === 'pending').length > 0 && filterStatus === 'all' && (
+                {pendingAbsencesCount > 0 && (
                   <span className="bg-red-500 text-white text-[10px] md:text-xs px-2 py-0.5 rounded-full">
-                    {absences.filter(a => a.status === 'pending').length}
+                    {pendingAbsencesCount}
                   </span>
                 )}
               </TabsTrigger>
@@ -202,7 +215,7 @@ export default function ApplicationReviewPage() {
                     ) : transfers.length === 0 ? (
                       <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-500 flex flex-col items-center justify-center"><Search className="w-8 h-8 text-gray-300 mb-2" />条件に一致する申請はありません</td></tr>
                     ) : transfers.map((t) => (
-                      <tr key={t.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
+                      <tr key={t.id} className={`border-b transition-colors ${t.status === 'pending' ? 'bg-orange-50/30' : 'bg-white hover:bg-gray-50'}`}>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-xs">{dayjs(t.created_at).format('MM/DD HH:mm')}</td>
                         <td className="px-4 md:px-6 py-4 font-bold text-gray-900 whitespace-nowrap">{t.student_name}</td>
                         <td className="px-4 md:px-6 py-4 text-blue-600 font-medium whitespace-nowrap">{t.instructor_name}</td>
@@ -259,7 +272,7 @@ export default function ApplicationReviewPage() {
                     ) : absences.length === 0 ? (
                       <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-500 flex flex-col items-center justify-center"><Search className="w-8 h-8 text-gray-300 mb-2" />条件に一致する報告はありません</td></tr>
                     ) : absences.map((a) => (
-                      <tr key={a.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
+                      <tr key={a.id} className={`border-b transition-colors ${a.status === 'pending' ? 'bg-orange-50/30' : 'bg-white hover:bg-gray-50'}`}>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-xs">{dayjs(a.created_at).format('MM/DD HH:mm')}</td>
                         <td className="px-4 md:px-6 py-4 font-bold text-gray-900 whitespace-nowrap">{a.student_name}</td>
                         <td className="px-4 md:px-6 py-4 text-blue-600 font-medium whitespace-nowrap">{a.instructor_name}</td>
@@ -318,7 +331,6 @@ export default function ApplicationReviewPage() {
               >
                 <option value="">すべての生徒</option>
                 {studentList.map(s => {
-                  // 🌟 ネストされた user オブジェクトの中身も執念で探す
                   const sName = s.user?.username || s.user?.full_name || s.username || s.full_name || s.name || `ID:${s.id}`;
                   return <option key={s.id} value={s.id}>{sName}</option>;
                 })}
@@ -335,7 +347,6 @@ export default function ApplicationReviewPage() {
                 >
                   <option value="">すべての講師</option>
                   {instructorList.map(i => {
-                    // 🌟 同様に講師名も安全に取得
                     const iName = i.user?.username || i.username || i.full_name || i.name || `ID:${i.id}`;
                     return <option key={i.id} value={i.id}>{iName} 先生</option>;
                   })}
@@ -365,7 +376,6 @@ export default function ApplicationReviewPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 振替申請の承認・連絡用ポップアップ */}
       <Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen}>
         <DialogContent className="w-[90vw] max-w-[500px] rounded-xl">
           <DialogHeader className="border-b pb-4"><DialogTitle className="text-xl">振替の承認と連絡</DialogTitle></DialogHeader>

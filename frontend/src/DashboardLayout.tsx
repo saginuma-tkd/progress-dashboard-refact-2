@@ -1,14 +1,15 @@
 // frontend/src/DashboardLayout.tsx
 
-import React, { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import api from './lib/api';
 import { Button } from './components/ui/button';
 import { cn } from './lib/utils';
 import {
     LogOut, Home, BookOpen, Settings, ScrollText, MessagesSquare,
     Key, Wrench, Files, ChevronLeft, ChevronRight, File,
-    Calendar, ShieldAlert, Menu, X, Database
+    Calendar, ShieldAlert, Menu, X, Database, Bell
 } from 'lucide-react';
 
 import {
@@ -23,10 +24,28 @@ import ChangePasswordForm from './components/ChangePasswordForm';
 export default function DashboardLayout() {
     const { user, logout } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
 
     const [isPasswordOpen, setIsPasswordOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    const [StudentPlofile, setStudentPlofile] = useState<any>(null);
+    // 🌟 追加: 未承認申請の件数ステート
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        if (user?.role === 'student') {
+            api.get('students/me')
+                .then(res => setStudentPlofile(res.data))
+                .catch(err => console.error(err));
+        } else if (user && ['user', 'admin', 'developer'].includes(user.role)) {
+            // 🌟 講師や管理者の場合は未承認の件数を取得
+            api.get('/applications/pending-count')
+                .then(res => setPendingCount(res.data.count))
+                .catch(err => console.error("未承認申請の取得に失敗:", err));
+        }
+    }, [user, location.pathname]); // ページ遷移時にも再取得して最新に保つ
 
     const isStudent = user?.role === 'student';
 
@@ -48,7 +67,7 @@ export default function DashboardLayout() {
         navItems.push(
             { name: 'ダッシュボード', path: '/', icon: Home },
             { name: '過去問/模試/入試', path: '/past-exam', icon: BookOpen },
-            { name: '申請の確認・承認', path: '/applications-review', icon: File },
+            { name: '申請の確認・承認', path: '/applications-review', icon: File, badge: pendingCount }, // 🌟 バッジ情報を追加
             { name: '教材・ルート表', path: '/materials', icon: Files },
             { name: 'バグ報告/要望', path: '/bug-report', icon: MessagesSquare }
         );
@@ -59,7 +78,7 @@ export default function DashboardLayout() {
         navItems.push(
             { name: 'ダッシュボード', path: '/', icon: Home },
             { name: '過去問/模試/入試', path: '/past-exam', icon: BookOpen },
-            { name: '申請の確認・承認', path: '/applications-review', icon: File },
+            { name: '申請の確認・承認', path: '/applications-review', icon: File, badge: pendingCount }, // 🌟 バッジ情報を追加
             { name: '教材・ルート表', path: '/materials', icon: Files },
             { name: '管理者メニュー', path: '/admin', icon: Settings },
             { name: 'バグ報告/要望', path: '/bug-report', icon: MessagesSquare },
@@ -73,7 +92,7 @@ export default function DashboardLayout() {
             { name: '開発ダッシュボード', path: '/developer', icon: Wrench },
             { name: 'ダッシュボード', path: '/', icon: Home },
             { name: '過去問/模試/入試', path: '/past-exam', icon: BookOpen },
-            { name: '申請の確認・承認', path: '/applications-review', icon: File },
+            { name: '申請の確認・承認', path: '/applications-review', icon: File, badge: pendingCount }, // 🌟 バッジ情報を追加
             { name: '教材・ルート表', path: '/materials', icon: Files },
             { name: '管理者メニュー', path: '/admin', icon: Settings },
             { name: 'バグ報告/要望', path: '/bug-report', icon: MessagesSquare },
@@ -104,12 +123,11 @@ export default function DashboardLayout() {
     } else if (user?.role === 'user' || user?.role === 'admin') {
         mobileBottomItems.push(
             { name: 'ホーム', path: '/', icon: Home },
-            { name: '申請確認', path: '/applications-review', icon: File },
+            { name: '申請確認', path: '/applications-review', icon: File, badge: pendingCount }, // 🌟 バッジ情報を追加
             { name: '教材管理', path: '/materials', icon: Files },
             { name: 'その他', path: '#more', icon: Menu, isTrigger: true }
         );
     } else {
-        // developer と super_admin はスマホで下部ナビを使わず、ドロワーのみとする
         mobileBottomItems.push(
             { name: 'メニュー', path: '#more', icon: Menu, isTrigger: true }
         );
@@ -121,11 +139,27 @@ export default function DashboardLayout() {
             {/* 📱 スマホ用：トップヘッダー（PCでは非表示） */}
             <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-40 flex items-center justify-between px-4">
                 <h1 className="text-lg font-bold text-gray-800 tracking-tight">Learning DB</h1>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-4">
+                    {/* 🌟 追加: スマホヘッダーの通知ベルアイコン */}
+                    {!isStudent && (
+                        <button
+                            onClick={() => navigate('/applications-review')}
+                            className="relative p-1 text-gray-500 hover:text-gray-800 transition-colors"
+                        >
+                            <Bell className="w-5 h-5" />
+                            {pendingCount > 0 && (
+                                <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border-2 border-white">
+                                    {pendingCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
+
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                         {user?.username}
                     </span>
-                    {/* 生徒の場合は、右上ボタンからログアウトやパスワード変更のメニュー（ドロワー）を開く */}
+                    {/* 生徒の場合はメニューボタン */}
                     {isStudent && (
                         <button
                             onClick={() => setIsMobileMenuOpen(true)}
@@ -137,7 +171,6 @@ export default function DashboardLayout() {
                 </div>
             </div>
 
-            {/* 📱 スマホ用：メニューが開いているときの背景マスク */}
             {isMobileMenuOpen && (
                 <div
                     className="md:hidden fixed inset-0 bg-black/40 z-40 transition-opacity"
@@ -145,7 +178,7 @@ export default function DashboardLayout() {
                 />
             )}
 
-            {/* サイドバー（PCでは常時表示、スマホでは「その他」を押した時だけスライド出現） */}
+            {/* サイドバー */}
             <aside
                 className={cn(
                     "bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-50",
@@ -155,7 +188,6 @@ export default function DashboardLayout() {
                     isCollapsed ? "md:w-20" : "w-64"
                 )}
             >
-                {/* スマホ用：ドロワーを閉じるXボタン */}
                 <button
                     className="md:hidden absolute top-4 right-4 p-2 text-gray-500 hover:bg-gray-100 rounded-full"
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -163,7 +195,6 @@ export default function DashboardLayout() {
                     <X className="w-5 h-5" />
                 </button>
 
-                {/* PC用：サイドバー折りたたみボタン */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className="hidden md:block absolute -right-3 top-7 bg-white border border-gray-200 shadow-sm rounded-full p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-50 z-30 transition-colors"
@@ -177,7 +208,7 @@ export default function DashboardLayout() {
                     </h1>
                     {!isCollapsed && (
                         <p className="text-sm text-gray-500 mt-1 whitespace-nowrap overflow-hidden text-ellipsis w-full hidden md:block">
-                            ようこそ、{user?.username}先生
+                            {user?.role === 'student' ? `ようこそ、${StudentPlofile?.name} さん` : `ようこそ、${user?.username} 先生`}
                         </p>
                     )}
                     <h2 className="text-lg font-bold text-gray-800 md:hidden mb-2">メニュー一覧</h2>
@@ -195,8 +226,22 @@ export default function DashboardLayout() {
                                 location.pathname === item.path && "bg-gray-100 font-medium text-primary"
                             )}
                         >
-                            <item.icon className={cn("w-5 h-5 flex-shrink-0", !isCollapsed && "md:mr-3 mr-3")} />
-                            <span className={cn("whitespace-nowrap", isCollapsed && "md:hidden")}>{item.name}</span>
+                            {/* 🌟 追加: アイコンにバッジを重ねる（折りたたみ時用） */}
+                            <div className="relative">
+                                <item.icon className={cn("w-5 h-5 flex-shrink-0", !isCollapsed && "md:mr-3 mr-3")} />
+                                {(item as any).badge > 0 && isCollapsed && (
+                                    <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border-2 border-white" />
+                                )}
+                            </div>
+
+                            <span className={cn("whitespace-nowrap flex-1", isCollapsed && "md:hidden")}>{item.name}</span>
+
+                            {/* 🌟 追加: 開いている時の右端バッジ表示 */}
+                            {(item as any).badge > 0 && !isCollapsed && (
+                                <span className="ml-auto bg-red-100 text-red-600 py-0.5 px-2 rounded-full text-xs font-bold">
+                                    {(item as any).badge}
+                                </span>
+                            )}
                         </Link>
                     ))}
                 </nav>
@@ -204,13 +249,7 @@ export default function DashboardLayout() {
                 <div className="p-4 border-t border-gray-200 space-y-2 pb-8 md:pb-4">
                     <Dialog open={isPasswordOpen} onOpenChange={setIsPasswordOpen}>
                         <DialogTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                className={cn(
-                                    "w-full text-gray-700 hover:bg-gray-100",
-                                    isCollapsed ? "md:justify-center px-0" : "justify-start px-4"
-                                )}
-                            >
+                            <Button variant="ghost" className={cn("w-full text-gray-700 hover:bg-gray-100", isCollapsed ? "md:justify-center px-0" : "justify-start px-4")}>
                                 <Key className={cn("w-5 h-5 flex-shrink-0", !isCollapsed && "md:mr-3 mr-3")} />
                                 <span className={cn("whitespace-nowrap", isCollapsed && "md:hidden")}>パスワード変更</span>
                             </Button>
@@ -223,21 +262,14 @@ export default function DashboardLayout() {
                         </DialogContent>
                     </Dialog>
 
-                    <Button
-                        variant="ghost"
-                        className={cn(
-                            "w-full text-red-500 hover:text-red-700 hover:bg-red-50",
-                            isCollapsed ? "md:justify-center px-0" : "justify-start px-4"
-                        )}
-                        onClick={logout}
-                    >
+                    <Button variant="ghost" className={cn("w-full text-red-500 hover:text-red-700 hover:bg-red-50", isCollapsed ? "md:justify-center px-0" : "justify-start px-4")} onClick={logout}>
                         <LogOut className={cn("w-5 h-5 flex-shrink-0", !isCollapsed && "md:mr-3 mr-3")} />
                         <span className={cn("whitespace-nowrap", isCollapsed && "md:hidden")}>ログアウト</span>
                     </Button>
                 </div>
             </aside>
 
-            {/* 📱 スマホ用：画面最下部のボトムナビゲーションバー（PCでは非表示） */}
+            {/* 📱 スマホ用：画面最下部のボトムナビゲーションバー */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 z-40 flex justify-around items-center px-2 shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
                 {mobileBottomItems.map((item, idx) => {
                     const isActive = location.pathname === item.path;
@@ -264,7 +296,15 @@ export default function DashboardLayout() {
                                 isActive ? "text-blue-600 font-semibold" : "text-gray-500"
                             )}
                         >
-                            <item.icon className={cn("w-5 h-5", isActive ? "stroke-[2.5]" : "stroke-[2]")} />
+                            {/* 🌟 追加: スマホ下部のバッジ表示 */}
+                            <div className="relative">
+                                <item.icon className={cn("w-5 h-5", isActive ? "stroke-[2.5]" : "stroke-[2]")} />
+                                {(item as any).badge > 0 && (
+                                    <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border-2 border-white">
+                                        {(item as any).badge}
+                                    </span>
+                                )}
+                            </div>
                             <span className="text-[10px] tracking-tighter">{item.name}</span>
                         </Link>
                     );
@@ -273,7 +313,6 @@ export default function DashboardLayout() {
 
             {/* Main Content */}
             <main className="flex-1 min-w-0 overflow-y-auto transition-all duration-300">
-                {/* 🌟 修正: 確実に存在する pt-20 と pb-24 を使って、上下の隠れを完全に防止！ */}
                 <div className="pt-20 md:pt-8 px-4 md:px-8 pb-24 md:pb-8">
                     <Outlet />
                 </div>

@@ -62,7 +62,16 @@ class DashboardData(BaseModel):
 # ==========================================
 
 @router.get("/presets")
-def get_presets(session: Session = Depends(get_db)):
+def get_presets(
+    session: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+    ):
+
+    query = session.query(BulkPreset).options(joinedload(BulkPreset.books))
+
+    if current_user.role != "developer":
+        query = query.filter(BulkPreset.school_id == current_user.school_id)
+
     presets = session.query(BulkPreset).options(joinedload(BulkPreset.books)).all()
     all_masters = session.query(MasterTextbook).all()
     master_map = { (m.subject, m.book_name): m for m in all_masters }
@@ -116,8 +125,8 @@ def get_study_time_summary(
     return crud_progress.get_study_time_summary(session, current_user)
 
 @router.get("/admin/inactive-users")
-def get_inactive_users(session: Session = Depends(get_db)):
-    return crud_progress.get_inactive_users(session)
+def get_inactive_users(session: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return crud_progress.get_inactive_users(session, current_user)
 
 @router.get("/list/{student_id}")
 def get_progress_list(student_id: int, session: Session = Depends(get_db)) -> List[Dict[str, Any]]:

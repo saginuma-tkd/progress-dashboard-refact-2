@@ -24,13 +24,25 @@ def _resolve_tenant_id(db: Session, student_id: int, current_user: models.User) 
 # --- TransferRequest CRUD ---
 
 def create_transfer_request(db: Session, request: schemas.TransferRequestCreate, current_user: models.User, student_id: int):
-    # 🌟 修正: 直接 current_user.tenant_id を使うと空(None)になることがあるので、上の関数を使う
     tenant_id = _resolve_tenant_id(db, student_id, current_user)
 
+    # 🌟 振替申請も同様に担当講師を探し出す！
+    instructor_id = getattr(request, "instructor_id", None)
+    if not instructor_id:
+        mapping = db.query(models.StudentInstructor).filter(
+            models.StudentInstructor.student_id == student_id,
+            models.StudentInstructor.is_main == 1
+        ).first()
+        if not mapping:
+            mapping = db.query(models.StudentInstructor).filter(
+                models.StudentInstructor.student_id == student_id
+            ).first()
+        instructor_id = mapping.user_id if mapping else 1
+
     new_req = models.TransferRequest(
-        tenant_id=tenant_id,  # 👈 解決したIDを使う！
+        tenant_id=tenant_id,
         student_id=student_id,
-        instructor_id=request.instructor_id, # 👈 追加: 担当講師
+        instructor_id=instructor_id, # 🌟 探し出した講師IDをセット！
         original_date=request.original_date,
         candidate_dates=request.candidate_dates,
         reason=request.reason,
@@ -88,17 +100,33 @@ def update_transfer_status(db: Session, request_id: int, update_data: schemas.Tr
 # --- AbsenceReport CRUD ---
 
 def create_absence_report(db: Session, request: schemas.AbsenceReportCreate, current_user: models.User, student_id: int):
-    # 🌟 修正: 同様に解決したIDを使う
     tenant_id = _resolve_tenant_id(db, student_id, current_user)
 
+    # 🌟 追加: StudentInstructor テーブルから担当講師を探し出す！
+    instructor_id = getattr(request, "instructor_id", None)
+    if not instructor_id:
+        # メインの担当講師を探す
+        mapping = db.query(models.StudentInstructor).filter(
+            models.StudentInstructor.student_id == student_id,
+            models.StudentInstructor.is_main == 1
+        ).first()
+        # メインがいなければ、紐づいている誰かを探す
+        if not mapping:
+            mapping = db.query(models.StudentInstructor).filter(
+                models.StudentInstructor.student_id == student_id
+            ).first()
+            
+        # 見つかればその user_id を、誰も紐づいていなければ念のため 1(塾長等) を入れる
+        instructor_id = mapping.user_id if mapping else 1
+
     new_rep = models.AbsenceReport(
-        tenant_id=tenant_id,  # 👈 解決したIDを使う！
+        tenant_id=tenant_id,
         student_id=student_id,
-        instructor_id=request.instructor_id, # 👈 追加: 担当講師
-        absence_date=request.absence_date,   # 👈 変更: day_of_week から変更
+        instructor_id=instructor_id, # 🌟 探し出した講師IDをセット！
+        absence_date=request.absence_date,
         reason=request.reason,
-        report_info=request.report_info,     # 👈 追加: レポート進捗
-        status="acknowledged"
+        report_info=request.report_info,
+        status="pending"
     )
     db.add(new_rep)
     db.commit()

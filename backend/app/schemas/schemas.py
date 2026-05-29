@@ -369,6 +369,7 @@ class TenantOut(BaseModel):
         from_attributes = True
 
 class ProgressUpdate(BaseModel):
+    id: Optional[int] = None
     completed_units: int
     total_units: int
 
@@ -385,7 +386,7 @@ class ProgressBatchCreate(BaseModel):
 
 class AdminUserCreate(BaseModel):
     username: str
-    password: str
+    password: Optional[str]
     role: str = "user"  # 指定がなければ一般講師(user)
     school: str = ""    # 指定がなければ空文字
 
