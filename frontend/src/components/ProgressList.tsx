@@ -1,3 +1,5 @@
+// frontend/src/components/ProgressList.tsx
+
 import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Button } from './ui/button';
@@ -5,7 +7,7 @@ import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Plus, Trash2, BookOpen, Clock, Layers, ChevronDown, ChevronUp, Pencil, X } from 'lucide-react'; // アイコン追加
+import { Plus, Trash2, BookOpen, Clock, Layers, ChevronDown, ChevronUp, Pencil, X } from 'lucide-react';
 import api from '../lib/api';
 import { ProgressItem, MasterBook, Preset, BookCandidate } from '../types';
 
@@ -25,10 +27,10 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
   const [presets, setPresets] = useState<Preset[]>([]);
   const [selectedBooks, setSelectedBooks] = useState<BookCandidate[]>([]);
 
-  // ★追加: 編集モード管理
+  // 編集モード管理
   const [isEditingMode, setIsEditingMode] = useState(false);
 
-  // ★追加: プリセット詳細展開管理
+  // プリセット詳細展開管理
   const [expandedPresetId, setExpandedPresetId] = useState<number | null>(null);
 
   const [masterSubjects, setMasterSubjects] = useState<string[]>([]);
@@ -95,14 +97,12 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
   }, [selectedSubject, fullList]);
 
   // --- ハンドラ ---
-
   const handleUpdate = async () => {
     if (!editingItem) return;
     try {
-      // 🌟 修正ポイント：patch -> post に変更し、URLを生徒IDベースに変更！
       await api.post(`/students/${studentId}/progress`, [
         {
-          id: editingItem.id, // 🌟 修正ポイント：progressID ではなく editingItem.id を使う
+          id: editingItem.id,
           completed_units: editCompleted,
           total_units: editTotal
         }
@@ -116,13 +116,12 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
     }
   };
 
-  // ★追加: 削除機能
   const handleDelete = async (item: ProgressItem) => {
     if (!window.confirm(`「${item.book_name}」を削除しますか？\nこの操作は取り消せません。`)) return;
 
     try {
       await api.delete(`/dashboard/progress/${item.id}`);
-      fetchData(); // リスト更新
+      fetchData();
       onUpdate?.();
     } catch (e) {
       alert("削除に失敗しました");
@@ -241,13 +240,12 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
 
   // --- サブコンポーネント ---
 
-  // 1. プリセット一覧 (修正版)
+  // 1. プリセット一覧
   const renderLeftColumnPresetList = () => {
     const filteredPresets = presets.filter(p =>
       filterPresetSubject === "" || p.subject === filterPresetSubject
     );
 
-    // プリセット展開トグル
     const toggleExpand = (id: number) => {
       setExpandedPresetId(expandedPresetId === id ? null : id);
     };
@@ -281,18 +279,15 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
                     <div className="text-sm font-bold text-gray-800">{preset.name}</div>
                   </div>
                   <div className="flex items-center gap-1">
-                    {/* ★詳細ボタン */}
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => toggleExpand(preset.id)}>
                       {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                     </Button>
-                    {/* 一括追加ボタン */}
                     <Button size="sm" className="h-7 bg-purple-600 hover:bg-purple-700 text-white text-xs px-2" onClick={() => addPresetToRight(preset)}>
                       <Plus className="w-3 h-3" />
                       <span className="ml-1 hidden sm:inline">追加</span>
                     </Button>
                   </div>
                 </div>
-                {/* ★内訳: 展開時のみ表示 */}
                 {isExpanded && (
                   <div className="p-2 bg-gray-50/50 text-xs text-muted-foreground space-y-1 border-t border-dashed">
                     {preset.books.map((b, i) => (
@@ -510,6 +505,22 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
     </div>
   );
 
+  // 🌟 追加: 表示用リストをグラフと同じルールで並び替える
+  const levelOrder = ["基礎徹底", "日大", "MARCH", "早慶"];
+  const sortedList = [...filteredList].sort((a, b) => {
+    const lvlA = a.level || "その他";
+    const lvlB = b.level || "その他";
+
+    // levelOrder のキーワードが、実際のレベル名(lvlA)に含まれているか探す
+    const aIndex = levelOrder.findIndex(keyword => lvlA.includes(keyword));
+    const bIndex = levelOrder.findIndex(keyword => lvlB.includes(keyword));
+
+    const aRank = aIndex === -1 ? 99 : aIndex;
+    const bRank = bIndex === -1 ? 99 : bIndex;
+
+    return aRank - bRank;
+  });
+
   return (
     <div className="h-full flex flex-col space-y-4">
       <div className="flex items-center justify-between px-1">
@@ -528,7 +539,6 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
           ))}
         </div>
 
-        {/* ★追加: 追加ボタンと編集ボタン: readOnlyの場合は非表示 */}
         {!readOnly && (
           <div className="flex items-center gap-2 ml-2">
             <Button size="sm" className="h-7 text-xs" onClick={() => setIsAddModalOpen(true)}>
@@ -564,24 +574,27 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredList.length === 0 && (
+            {/* 🌟 変更: filteredList ではなく sortedList を使う */}
+            {sortedList.length === 0 && (
               <TableRow>
                 <TableCell colSpan={3} className="text-center h-24 text-muted-foreground text-xs">
                   データがありません。「追加」ボタンから登録してください。
                 </TableCell>
               </TableRow>
             )}
-            {filteredList.map((item) => (
+            {sortedList.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">
-                  <div className="text-xs text-muted-foreground mb-0.5">{item.subject}</div>
+                  <div className="text-xs text-muted-foreground mb-0.5">
+                    {/* 🌟 レベルも見えた方が分かりやすいので、科目とセットで表示 */}
+                    {item.subject} / {item.level || 'カスタム'}
+                  </div>
                   {item.book_name}
                 </TableCell>
                 <TableCell className="text-center text-sm">
                   {item.completed_units} / {item.total_units}
                 </TableCell>
                 <TableCell className="text-right">
-                  {/* readOnlyの場合は操作ボタンを非表示 */}
                   {!readOnly && (
                     isEditingMode ? (
                       <Button variant="destructive" size="sm" className="h-7 w-7 p-0" onClick={() => handleDelete(item)}>

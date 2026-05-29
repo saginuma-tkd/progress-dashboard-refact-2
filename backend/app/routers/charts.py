@@ -123,6 +123,6 @@ def get_progress_chart(
                 total_val = float(item.total_units or 0)
                 completed_val = float(item.completed_units or 0)
 
-            response_data.append({"name": book_name, "completed": round(completed_val, 1), "total": round(total_val, 1), "type": "book"})
+            response_data.append({"name": book_name, "completed": round(completed_val, 1), "total": round(total_val, 1), "type": "book", "level": book_level})
 
     return response_data

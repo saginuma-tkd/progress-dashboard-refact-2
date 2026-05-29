@@ -54,6 +54,7 @@ export interface ProgressItem {
   book_name: string;
   completed_units: number;
   total_units: number;
+  level?: string;
 }
 
 export interface MasterBook {
