@@ -1,5 +1,3 @@
-// frontend/src/components/admin/TeachingMaterialManagement.tsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../../lib/api';
 import { Tag, TeachingMaterial } from '../../types';
@@ -9,19 +7,23 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+// 🌟 メモ表示用のDialogを追加
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { toast } from 'sonner';
-import { Upload, Trash2, Download, FileText, Edit, Save, X, BookOpen, Map, Tags, Globe, Building2, Info } from 'lucide-react';
-import { Badge } from '../ui/badge'; // 🌟 追加
+import { Upload, Trash2, Download, FileText, Edit, Save, X, BookOpen, Map, Tags, Globe, Building2, Info, Search } from 'lucide-react';
+import { Badge } from '../ui/badge';
 
 interface RouteTableItem {
     id: number;
     filename: string;
+    title?: string;
     academic_year: number;
     uploaded_at: string;
     subjects?: Tag[];
     detail_tags?: Tag[];
-    school_id?: number | null; // 🌟 追加
+    school_id?: number | null;
+    internal_memo?: string;
 }
 
 export default function TeachingMaterialManagement() {
@@ -33,7 +35,6 @@ export default function TeachingMaterialManagement() {
     const [subjects, setSubjects] = useState<Tag[]>([]);
     const [details, setDetails] = useState<Tag[]>([]);
 
-    // 🌟 権限管理用のステート
     const [userRole, setUserRole] = useState<string>("");
 
     // --- 統合フォーム用ステート ---
@@ -41,25 +42,23 @@ export default function TeachingMaterialManagement() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [file, setFile] = useState<File | null>(null);
 
-    // 共通タグステート
     const [selectedSubjects, setSelectedSubjects] = useState<number[]>([]);
     const [selectedDetails, setSelectedDetails] = useState<number[]>([]);
 
-    // 教材専用
+    // 🌟 タイトルはプリント・ルート表で共通利用
     const [title, setTitle] = useState('');
     const [memo, setMemo] = useState('');
-
-    // ルート表専用
     const [routeYear, setRouteYear] = useState(new Date().getFullYear().toString());
 
-    // タグ追加用
     const [newSubjectName, setNewSubjectName] = useState('');
     const [newDetailName, setNewDetailName] = useState('');
+
+    // 🌟 詳細(メモ)表示用ステート
+    const [selectedMemo, setSelectedMemo] = useState<TeachingMaterial | RouteTableItem | null>(null);
 
     // --- データ取得 ---
     const fetchData = async () => {
         try {
-            // 🌟 ユーザー情報を取得
             const savedUser = localStorage.getItem('user');
             if (savedUser) {
                 const userObj = JSON.parse(savedUser);
@@ -68,7 +67,7 @@ export default function TeachingMaterialManagement() {
 
             const [matRes, routeRes, subRes, detRes] = await Promise.all([
                 api.get('/materials/?category=material'),
-                api.get('/routes/list'), // ← ルート表一覧を取得するAPI（バックエンドの実装に依存）
+                api.get('/routes/list'),
                 api.get('/materials/tags/subjects'),
                 api.get('/materials/tags/details')
             ]);
@@ -86,15 +85,24 @@ export default function TeachingMaterialManagement() {
         fetchData();
     }, []);
 
-    // 🌟 権限チェック：この教材・ルート表を編集・削除していいか？
     const canEditOrDelete = (item: any) => {
-        // 開発者・テナント長ならすべて編集可能
         if (userRole === "developer" || userRole === "super_admin") return true;
-        // 校舎長なら、自分の校舎専用のもの（school_idが入っているもの）だけ編集可能
         return item.school_id !== null && item.school_id !== undefined;
     };
 
-    // --- フォーム操作 ---
+    // 🌟 ファイル選択時に自動でファイル名をタイトルにセットする関数
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile) {
+            setFile(selectedFile);
+            // 拡張子を取り除いたファイル名を抽出
+            const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, "");
+            setTitle(fileNameWithoutExt);
+        } else {
+            setFile(null);
+        }
+    };
+
     const resetForm = () => {
         setEditingId(null);
         setFile(null);
@@ -123,29 +131,28 @@ export default function TeachingMaterialManagement() {
         setCategory('route_table');
         setEditingId(r.id);
         setRouteYear(r.academic_year.toString());
+        setTitle(r.title || r.filename || '');
         setSelectedSubjects(r.subjects?.map(s => s.id) || []);
         setSelectedDetails(r.detail_tags?.map(d => d.id) || []);
         setFile(null);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // --- 送信処理 ---
     const handleUploadOrUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingId && !file) return toast.error("新規登録時はファイルが必須です");
+        if (!title) return toast.error("タイトルは必須です");
 
         const formData = new FormData();
         if (file) formData.append('file', file);
+        formData.append('title', title);
 
         selectedSubjects.forEach(id => formData.append('subject_ids', String(id)));
         selectedDetails.forEach(id => formData.append('detail_tag_ids', String(id)));
 
         try {
             if (category === 'material') {
-                if (!title) return toast.error("タイトルは必須です");
-                formData.append('title', title);
                 if (memo) formData.append('internal_memo', memo);
-
                 if (editingId) {
                     await api.put(`/materials/${editingId}`, formData);
                     toast.success("プリント情報を更新しました");
@@ -156,16 +163,12 @@ export default function TeachingMaterialManagement() {
             } else {
                 if (!routeYear) return toast.error("対象年度は必須です");
                 formData.append('academic_year', routeYear);
-
-                // 🌟 ルート表アップロードの際も category を明示的に送るよう修正
                 formData.append('category', 'route_table');
-                formData.append('title', `${routeYear}年度 ルート表`); // DB制約回避用
 
                 if (editingId) {
                     await api.patch(`/routes/${editingId}`, formData);
                     toast.success("ルート表情報を更新しました");
                 } else {
-                    // ルート表もmaterialsエンドポイントからアップロードする設計になっている場合
                     await api.post('/materials/', formData);
                     toast.success("ルート表をアップロードしました");
                 }
@@ -178,7 +181,6 @@ export default function TeachingMaterialManagement() {
         }
     };
 
-    // --- 削除・ダウンロード ---
     const handleDelete = async (id: number, type: 'material' | 'route') => {
         const isOk = await confirm({
             title: "ファイルを削除しますか？",
@@ -190,7 +192,7 @@ export default function TeachingMaterialManagement() {
 
         try {
             if (type === 'material') await api.delete(`/materials/${id}`);
-            else await api.delete(`/routes/${id}`); // バックエンドの構成に応じて適宜変更
+            else await api.delete(`/routes/${id}`);
             toast.success("削除しました");
             fetchData();
         } catch (error) {
@@ -199,10 +201,7 @@ export default function TeachingMaterialManagement() {
     };
 
     const handleDownload = (id: number, type: 'route' | 'material') => {
-        // materialsエンドポイントに一本化されていると想定
         const url = `${api.getUri()}/materials/${id}/pdf`;
-
-        // 事前署名付きURLを取得してから開く
         api.get(url).then(res => {
             if (res.data && res.data.url) {
                 window.open(res.data.url, '_blank');
@@ -212,7 +211,6 @@ export default function TeachingMaterialManagement() {
         });
     };
 
-    // --- タグ管理 ---
     const handleAddTag = async (type: 'subjects' | 'details', name: string, setName: (val: string) => void) => {
         if (!name) return;
         try {
@@ -252,12 +250,12 @@ export default function TeachingMaterialManagement() {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start h-[calc(100vh-120px)] min-h-[600px]">
 
             {/* =========================================
                 [左列] 統合アップロードフォーム (5/12の幅を占有)
             ========================================= */}
-            <div className="lg:col-span-5 xl:col-span-4 sticky top-6">
+            <div className="lg:col-span-5 xl:col-span-4 h-full overflow-y-auto pr-2 pb-10">
                 <form onSubmit={handleUploadOrUpdate} className={`p-5 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-200'}`}>
                     <div className="flex flex-col gap-3 mb-6 border-b pb-4">
                         <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
@@ -287,7 +285,6 @@ export default function TeachingMaterialManagement() {
 
                     <div className="space-y-6">
 
-                        {/* 🌟 登録範囲のガイダンス */}
                         <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs flex items-start gap-2 border border-blue-100">
                             <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                             <div>
@@ -298,24 +295,23 @@ export default function TeachingMaterialManagement() {
                             </div>
                         </div>
 
-                        {/* ファイル・入力フィールド */}
+                        {/* 🌟 ファイル選択（onchange変更） */}
                         <div className="space-y-4">
                             <div className="space-y-1.5">
                                 <Label className="text-gray-700">ファイル {editingId ? <span className="text-xs text-gray-400">(変更時のみ)</span> : <span className="text-red-500">*</span>}</Label>
-                                <Input id="unified-file-upload" type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] || null)} required={!editingId} className="bg-gray-50" />
+                                <Input id="unified-file-upload" type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFileChange} required={!editingId} className="bg-gray-50" />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label className="text-gray-700">タイトル <span className="text-red-500">*</span></Label>
+                                <Input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="ファイル名から自動設定されます" className="bg-gray-50" />
                             </div>
 
                             {category === 'material' ? (
-                                <>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-gray-700">タイトル <span className="text-red-500">*</span></Label>
-                                        <Input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="例: 関係代名詞 演習" className="bg-gray-50" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-gray-700">内部メモ・指導ポイント</Label>
-                                        <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="教える際の注意点などを入力" className="h-20 bg-gray-50" />
-                                    </div>
-                                </>
+                                <div className="space-y-1.5">
+                                    <Label className="text-gray-700">内部メモ・指導ポイント</Label>
+                                    <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="教える際の注意点などを入力" className="h-20 bg-gray-50" />
+                                </div>
                             ) : (
                                 <div className="space-y-1.5">
                                     <Label className="text-gray-700">対象年度 <span className="text-red-500">*</span></Label>
@@ -324,7 +320,6 @@ export default function TeachingMaterialManagement() {
                             )}
                         </div>
 
-                        {/* タグ選択エリア */}
                         <div className="space-y-4 bg-gray-50 p-4 rounded-lg border">
                             <div>
                                 <Label className="mb-2 block text-gray-700 text-sm">科目タグ</Label>
@@ -366,63 +361,58 @@ export default function TeachingMaterialManagement() {
             </div>
 
             {/* =========================================
-                [右列] ファイル一覧 & タグ管理タブ (7/12の幅を占有)
+                [右列] 🌟 スクロール制御を適用したリスト
             ========================================= */}
-            <div className="lg:col-span-7 xl:col-span-8">
-                <Tabs defaultValue="materials" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 bg-gray-100 h-12 p-1 sticky top-6 z-10 shadow-sm">
+            <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full min-h-0 pb-10">
+                <Tabs defaultValue="materials" className="w-full h-full flex flex-col min-h-0">
+                    <TabsList className="grid w-full grid-cols-3 bg-gray-100 h-12 p-1 shrink-0">
                         <TabsTrigger value="materials" className="font-bold data-[state=active]:bg-white data-[state=active]:text-blue-700"><BookOpen className="w-4 h-4 mr-2 hidden sm:block" />プリント</TabsTrigger>
                         <TabsTrigger value="routes" className="font-bold data-[state=active]:bg-white data-[state=active]:text-purple-700"><Map className="w-4 h-4 mr-2 hidden sm:block" />ルート表</TabsTrigger>
                         <TabsTrigger value="tags" className="font-bold data-[state=active]:bg-white data-[state=active]:text-gray-700"><Tags className="w-4 h-4 mr-2 hidden sm:block" />タグ管理</TabsTrigger>
                     </TabsList>
 
                     {/* --- プリント一覧 --- */}
-                    <TabsContent value="materials" className="mt-4">
-                        <div className="border rounded-lg bg-white overflow-hidden shadow-sm">
+                    <TabsContent value="materials" className="mt-4 flex-1 min-h-0 relative [&>div]:h-full overflow-hidden">
+                        <div className="border rounded-lg bg-white h-full overflow-y-auto shadow-sm">
                             <Table>
-                                <TableHeader className="bg-gray-50/80">
+                                {/* 🌟 stickyヘッダー */}
+                                <TableHeader className="sticky top-0 bg-gray-50 z-10 ring-1 ring-gray-200">
                                     <TableRow>
                                         <TableHead className="font-bold">タイトル</TableHead>
-                                        <TableHead className="font-bold w-24">公開範囲</TableHead> {/* 🌟 追加 */}
+                                        <TableHead className="font-bold w-24">公開範囲</TableHead>
                                         <TableHead className="font-bold">タグ</TableHead>
-                                        <TableHead className="text-right font-bold w-28">操作</TableHead>
+                                        <TableHead className="text-right font-bold w-36">操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {materials.map((m: any) => (
                                         <TableRow key={m.id} className="hover:bg-gray-50/50">
                                             <TableCell className="font-medium text-gray-900">{m.title}</TableCell>
-
-                                            {/* 🌟 バッジ表示 */}
                                             <TableCell>
                                                 {m.school_id === null || m.school_id === undefined ? (
-                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-normal shadow-none whitespace-nowrap">
-                                                        <Globe className="w-3 h-3 mr-1" />共通
-                                                    </Badge>
+                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-normal shadow-none whitespace-nowrap"><Globe className="w-3 h-3 mr-1" />共通</Badge>
                                                 ) : (
-                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal shadow-none whitespace-nowrap">
-                                                        <Building2 className="w-3 h-3 mr-1" />自校舎
-                                                    </Badge>
+                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal shadow-none whitespace-nowrap"><Building2 className="w-3 h-3 mr-1" />自校舎</Badge>
                                                 )}
                                             </TableCell>
-
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {m.subjects?.map((s: any) => <span key={s.id} className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2 py-0.5 rounded">{s.name}</span>)}
                                                     {m.detail_tags?.map((d: any) => <span key={d.id} className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded">{d.name}</span>)}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-right space-x-0.5">
-                                                <Button variant="ghost" size="icon" onClick={() => handleDownload(m.id, 'material')} className="h-8 w-8 text-gray-500 hover:text-blue-600"><Download className="w-4 h-4" /></Button>
-                                                {/* 🌟 権限チェック */}
-                                                {canEditOrDelete(m) ? (
-                                                    <>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleEditMaterial(m)} className="h-8 w-8 text-gray-500 hover:text-indigo-600"><Edit className="w-4 h-4" /></Button>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleDelete(m.id, 'material')} className="h-8 w-8 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></Button>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-[10px] text-gray-400 ml-2">編集不可</span>
-                                                )}
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    {/* 🌟 詳細ボタン */}
+                                                    <Button variant="outline" size="sm" onClick={() => setSelectedMemo(m)} className="h-7 text-xs px-2 text-gray-500"><Search className="w-3 h-3 mr-1" />詳細</Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDownload(m.id, 'material')} className="h-7 w-7 text-gray-500 hover:text-blue-600"><Download className="w-4 h-4" /></Button>
+                                                    {canEditOrDelete(m) && (
+                                                        <>
+                                                            <Button variant="ghost" size="icon" onClick={() => handleEditMaterial(m)} className="h-7 w-7 text-gray-500 hover:text-indigo-600"><Edit className="w-4 h-4" /></Button>
+                                                            <Button variant="ghost" size="icon" onClick={() => handleDelete(m.id, 'material')} className="h-7 w-7 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></Button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -433,15 +423,15 @@ export default function TeachingMaterialManagement() {
                     </TabsContent>
 
                     {/* --- ルート表一覧 --- */}
-                    <TabsContent value="routes" className="mt-4">
-                        <div className="border rounded-lg bg-white overflow-hidden shadow-sm">
+                    <TabsContent value="routes" className="mt-4 flex-1 min-h-0 relative [&>div]:h-full overflow-hidden">
+                        <div className="border rounded-lg bg-white h-full overflow-y-auto shadow-sm">
                             <Table>
-                                <TableHeader className="bg-gray-50/80">
+                                <TableHeader className="sticky top-0 bg-gray-50 z-10 ring-1 ring-gray-200">
                                     <TableRow>
                                         <TableHead className="font-bold">ファイル</TableHead>
-                                        <TableHead className="font-bold w-24">公開範囲</TableHead> {/* 🌟 追加 */}
+                                        <TableHead className="font-bold w-24">公開範囲</TableHead>
                                         <TableHead className="font-bold">タグ</TableHead>
-                                        <TableHead className="text-right font-bold w-28">操作</TableHead>
+                                        <TableHead className="text-right font-bold w-36">操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -450,23 +440,16 @@ export default function TeachingMaterialManagement() {
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <span className="text-xs text-gray-500 font-mono font-bold">{file.academic_year}年度</span>
-                                                    <span className="text-sm font-medium text-gray-800 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-gray-400" /> {file.filename || file.title || 'ルート表'}</span>
+                                                    <span className="text-sm font-medium text-gray-800 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-gray-400" /> {file.title || file.filename || 'ルート表'}</span>
                                                 </div>
                                             </TableCell>
-
-                                            {/* 🌟 バッジ表示 */}
                                             <TableCell>
                                                 {file.school_id === null || file.school_id === undefined ? (
-                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-normal shadow-none whitespace-nowrap">
-                                                        <Globe className="w-3 h-3 mr-1" />共通
-                                                    </Badge>
+                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-normal shadow-none whitespace-nowrap"><Globe className="w-3 h-3 mr-1" />共通</Badge>
                                                 ) : (
-                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal shadow-none whitespace-nowrap">
-                                                        <Building2 className="w-3 h-3 mr-1" />自校舎
-                                                    </Badge>
+                                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal shadow-none whitespace-nowrap"><Building2 className="w-3 h-3 mr-1" />自校舎</Badge>
                                                 )}
                                             </TableCell>
-
                                             <TableCell>
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {file.subjects?.map((s: any) => <span key={s.id} className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold px-2 py-0.5 rounded">{s.name}</span>)}
@@ -474,17 +457,18 @@ export default function TeachingMaterialManagement() {
                                                     {(!file.subjects?.length && !file.detail_tags?.length) && <span className="text-xs text-gray-400">タグなし</span>}
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-right space-x-0.5">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(file.id, 'route')}><Download className="w-4 h-4 text-blue-500" /></Button>
-                                                {/* 🌟 権限チェック */}
-                                                {canEditOrDelete(file) ? (
-                                                    <>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditRoute(file)}><Edit className="w-4 h-4 text-gray-500 hover:text-indigo-600" /></Button>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(file.id, 'route')}><Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" /></Button>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-[10px] text-gray-400 ml-2">編集不可</span>
-                                                )}
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    {/* 🌟 詳細ボタン */}
+                                                    <Button variant="outline" size="sm" onClick={() => setSelectedMemo(file)} className="h-7 text-xs px-2 text-gray-500"><Search className="w-3 h-3 mr-1" />詳細</Button>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(file.id, 'route')}><Download className="w-4 h-4 text-blue-500" /></Button>
+                                                    {canEditOrDelete(file) && (
+                                                        <>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditRoute(file)}><Edit className="w-4 h-4 text-gray-500 hover:text-indigo-600" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(file.id, 'route')}><Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" /></Button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -494,9 +478,9 @@ export default function TeachingMaterialManagement() {
                         </div>
                     </TabsContent>
 
-                    {/* --- タグ管理 --- */}
-                    <TabsContent value="tags" className="mt-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* --- タグ管理 (スクロール対応済) --- */}
+                    <TabsContent value="tags" className="mt-4 flex-1 min-h-0 overflow-y-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
                             <div className="bg-white p-5 rounded-xl border shadow-sm">
                                 <h3 className="font-bold text-blue-700 border-b pb-2 mb-4">科目タグ</h3>
                                 <div className="flex gap-2 mb-4">
@@ -529,6 +513,33 @@ export default function TeachingMaterialManagement() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* 🌟 メモ（詳細）表示用モーダル */}
+            <Dialog open={!!selectedMemo} onOpenChange={(open) => !open && setSelectedMemo(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>ファイル詳細</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div>
+                            <label className="text-xs font-bold text-gray-500">タイトル</label>
+                            <p className="text-sm text-gray-800 font-medium mt-1">
+                                {selectedMemo && ('title' in selectedMemo ? selectedMemo.title : (selectedMemo as RouteTableItem).filename)}
+                            </p>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500">内部メモ</label>
+                            <div className="mt-1 p-3 bg-yellow-50 text-yellow-900 border border-yellow-200 rounded-md text-sm min-h-[100px] whitespace-pre-wrap">
+                                {selectedMemo?.internal_memo || "メモは登録されていません。"}
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSelectedMemo(null)}>閉じる</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
