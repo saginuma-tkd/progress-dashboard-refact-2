@@ -1,6 +1,7 @@
 import sys
 import os
 from sqlalchemy.orm import Session
+from sqlalchemy import text  # 🌟 ここを追加
 
 # プロジェクトのルートディレクトリをパスに追加してappモジュールを読み込めるようにする
 sys.path.append(os.getcwd())
@@ -10,6 +11,24 @@ from app.models.models import Tenant, School, User, Student, MasterTextbook, Bul
 
 def run_migration():
     db: Session = SessionLocal()
+    
+    # === 🚨 緊急手術：足りない tenant_id カラムを直接DBに生やす ===
+    print("--- DBカラムの自動補修を開始します ---")
+    tables_needing_tenant = [
+        "users", "master_textbooks", "bulk_presets", 
+        "teaching_materials", "transfer_requests", "absence_reports"
+    ]
+    for table in tables_needing_tenant:
+        try:
+            # SQLを直接実行してカラムを追加
+            db.execute(text(f"ALTER TABLE {table} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)"))
+            db.commit()
+            print(f"🔧 {table} テーブルに tenant_id を追加しました！")
+        except Exception:
+            db.rollback()  # 既にカラムが存在してエラーになった場合はスルーして次へ
+            
+    # =======================================================
+    
     try:
         print("--- 既存データの紐付けを開始します ---")
         
@@ -52,25 +71,24 @@ def run_migration():
             st.school_id = s_id
         print(f"  - Student: {len(students)}件更新")
 
-        # MasterTextbook の更新（全校舎共通なので tenant_id のみ紐付け）
+        # MasterTextbook の更新（全校舎共通）
         textbooks = db.query(MasterTextbook).filter(MasterTextbook.tenant_id == None).all()
         for tb in textbooks:
             tb.tenant_id = t_id
         print(f"  - MasterTextbook: {len(textbooks)}件更新")
 
-        # BulkPreset の更新（全校舎共通なので tenant_id のみ紐付け）
+        # BulkPreset の更新（全校舎共通）
         presets = db.query(BulkPreset).filter(BulkPreset.tenant_id == None).all()
         for p in presets:
             p.tenant_id = t_id
         print(f"  - BulkPreset: {len(presets)}件更新")
 
-        # TeachingMaterial の更新（全校舎共通なので tenant_id のみ紐付け）
+        # TeachingMaterial の更新（全校舎共通）
         materials = db.query(TeachingMaterial).filter(TeachingMaterial.tenant_id == None).all()
         for m in materials:
             m.tenant_id = t_id
         print(f"  - TeachingMaterial: {len(materials)}件更新")
 
-        # 変更をDBに一括保存
         db.commit()
         print("🎉 すべての既存データの移行が完了しました！")
 
