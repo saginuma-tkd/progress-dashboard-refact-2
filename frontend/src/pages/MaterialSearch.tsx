@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Search, Printer, Files, Info, Upload, X, Map, BookOpen, LayoutGrid, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
+// ==========================================
 // カテゴリ定義
+// ==========================================
 const CATEGORIES = [
     { id: 'all', label: 'すべて', icon: LayoutGrid },
     { id: 'material', label: '教材', icon: BookOpen },
@@ -18,7 +20,7 @@ const CATEGORIES = [
 type CategoryId = typeof CATEGORIES[number]['id'];
 
 // ==========================================
-// アップロードモーダル
+// アップロードモーダル（※ここには詳細ボタンは置きません）
 // ==========================================
 interface UploadModalProps {
     onClose: () => void;
@@ -181,7 +183,7 @@ function UploadModal({ onClose, onSuccess, subjects, details }: UploadModalProps
 }
 
 // ==========================================
-// メインページ
+// メインページ（検索＆一覧表示）
 // ==========================================
 export default function MaterialSearch() {
     const [allMaterials, setAllMaterials] = useState<TeachingMaterial[]>([]);
@@ -195,7 +197,7 @@ export default function MaterialSearch() {
     const [isLoading, setIsLoading] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
 
-    // 🌟 詳細メモ表示用ステート
+    // 🌟 ユーザー向け詳細（メモ等）表示用ステート
     const [selectedMemoMaterial, setSelectedMemoMaterial] = useState<TeachingMaterial | null>(null);
 
     const fetchData = async () => {
@@ -321,7 +323,7 @@ export default function MaterialSearch() {
                 </div>
             </div>
 
-            {/* 🌟 結果一覧 (リスト形式に変更) */}
+            {/* 🌟 結果一覧 (テーブル表示) */}
             <div className="flex-1 min-h-0 relative [&>div]:h-full overflow-hidden bg-white border rounded-xl shadow-sm">
                 <div className="h-full overflow-y-auto">
                     <Table>
@@ -351,17 +353,16 @@ export default function MaterialSearch() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            {/* 🌟 詳細ボタン */}
-                                            {m.internal_memo && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setSelectedMemoMaterial(m)}
-                                                    className="h-8 text-xs text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100 px-2"
-                                                >
-                                                    <Info className="w-3.5 h-3.5 mr-1" /> メモ
-                                                </Button>
-                                            )}
+                                            {/* 🌟 生徒画面用の「詳細（メモ）」ボタン */}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setSelectedMemoMaterial(m)}
+                                                className="h-8 text-xs text-gray-600 border-gray-300 bg-gray-50 hover:bg-gray-100 px-2"
+                                            >
+                                                <Info className="w-3.5 h-3.5 mr-1 text-gray-400" /> 詳細
+                                            </Button>
+
                                             <Button
                                                 size="sm"
                                                 onClick={() => handlePreviewAndPrint(m.id)}
@@ -397,11 +398,14 @@ export default function MaterialSearch() {
                 />
             )}
 
-            {/* 🌟 メモ表示用モーダル */}
+            {/* 🌟 ユーザー向け詳細（メモ等）表示用モーダル */}
             <Dialog open={!!selectedMemoMaterial} onOpenChange={(open) => !open && setSelectedMemoMaterial(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>指導メモ</DialogTitle>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Info className="w-5 h-5 text-blue-500" />
+                            ファイル詳細
+                        </DialogTitle>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div>
@@ -409,9 +413,9 @@ export default function MaterialSearch() {
                             <p className="text-sm text-gray-800 font-medium mt-1">{selectedMemoMaterial?.title}</p>
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-gray-500">メモ内容</label>
-                            <div className="mt-1 p-3 bg-amber-50 text-amber-900 border border-amber-200 rounded-md text-sm min-h-[100px] whitespace-pre-wrap leading-relaxed">
-                                {selectedMemoMaterial?.internal_memo}
+                            <label className="text-xs font-bold text-gray-500">指導メモ</label>
+                            <div className="mt-1 p-3 bg-gray-50 text-gray-800 border border-gray-200 rounded-md text-sm min-h-[100px] whitespace-pre-wrap leading-relaxed">
+                                {selectedMemoMaterial?.internal_memo || <span className="text-gray-400 italic">特記事項はありません</span>}
                             </div>
                         </div>
                     </div>

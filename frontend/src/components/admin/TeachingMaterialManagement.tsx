@@ -7,11 +7,9 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-// 🌟 メモ表示用のDialogを追加
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { toast } from 'sonner';
-import { Upload, Trash2, Download, FileText, Edit, Save, X, BookOpen, Map, Tags, Globe, Building2, Info, Search } from 'lucide-react';
+import { Upload, Trash2, Download, FileText, Edit, Save, X, BookOpen, Map, Tags, Globe, Building2, Info } from 'lucide-react';
 import { Badge } from '../ui/badge';
 
 interface RouteTableItem {
@@ -45,7 +43,6 @@ export default function TeachingMaterialManagement() {
     const [selectedSubjects, setSelectedSubjects] = useState<number[]>([]);
     const [selectedDetails, setSelectedDetails] = useState<number[]>([]);
 
-    // 🌟 タイトルはプリント・ルート表で共通利用
     const [title, setTitle] = useState('');
     const [memo, setMemo] = useState('');
     const [routeYear, setRouteYear] = useState(new Date().getFullYear().toString());
@@ -53,19 +50,39 @@ export default function TeachingMaterialManagement() {
     const [newSubjectName, setNewSubjectName] = useState('');
     const [newDetailName, setNewDetailName] = useState('');
 
-    // 🌟 詳細(メモ)表示用ステート
-    const [selectedMemo, setSelectedMemo] = useState<TeachingMaterial | RouteTableItem | null>(null);
-
     // --- データ取得 ---
     const fetchData = async () => {
         try {
-            const savedUser = localStorage.getItem('user');
-            if (savedUser) {
-                const userObj = JSON.parse(savedUser);
-                // 🌟 userObj直下、または userObj.user の中の両方から探すように修正！
-                const roleStr = userObj.role || userObj.user?.role || '';
-                setUserRole(String(roleStr).toLowerCase());
+            // ==================================================
+            // 🌟 修正ポイント: どんな保存形式でも絶対に見つけ出す権限チェック
+            // ==================================================
+            let detectedRole = "";
+
+            // パターン1: localStorage内のどこかに平文で保存されている場合を全探索
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key) detectedRole += (localStorage.getItem(key) || "") + " ";
             }
+
+            // パターン2: JWTトークンの中に暗号化されて入っている場合
+            const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+            if (token && token.includes('.')) {
+                try {
+                    // トークンのペイロード（中身）をデコードして展開
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    detectedRole += " " + String(payload.role || payload.user_type || '').toLowerCase();
+                } catch (e) {
+                    // デコード失敗時は無視
+                }
+            }
+
+            // 全部合体させた文字列を小文字にしてセット
+            detectedRole = detectedRole.toLowerCase();
+            setUserRole(detectedRole);
+
+            // 念のためのデバッグ用（もしこれでも出ない場合はF12の開発者ツールを見てみてください！）
+            console.log("🔍 権限判定用の文字列:", detectedRole);
+            // ==================================================
 
             const [matRes, routeRes, subRes, detRes] = await Promise.all([
                 api.get('/materials/?category=material'),
@@ -87,17 +104,16 @@ export default function TeachingMaterialManagement() {
         fetchData();
     }, []);
 
+    // 🌟 権限チェック (includesで柔軟に判定)
     const canEditOrDelete = (item: any) => {
-        if (userRole === "developer" || userRole === "super_admin") return true;
+        if (userRole.includes("developer") || userRole.includes("super_admin")) return true;
         return item.school_id !== null && item.school_id !== undefined;
     };
 
-    // 🌟 ファイル選択時に自動でファイル名をタイトルにセットする関数
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
             setFile(selectedFile);
-            // 拡張子を取り除いたファイル名を抽出
             const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, "");
             setTitle(fileNameWithoutExt);
         } else {
@@ -255,7 +271,7 @@ export default function TeachingMaterialManagement() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start h-[calc(100vh-120px)] min-h-[600px]">
 
             {/* =========================================
-                [左列] 統合アップロードフォーム (5/12の幅を占有)
+                [左列] 統合アップロードフォーム
             ========================================= */}
             <div className="lg:col-span-5 xl:col-span-4 h-full overflow-y-auto pr-2 pb-10">
                 <form onSubmit={handleUploadOrUpdate} className={`p-5 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-200'}`}>
@@ -286,18 +302,16 @@ export default function TeachingMaterialManagement() {
                     </div>
 
                     <div className="space-y-6">
-
                         <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs flex items-start gap-2 border border-blue-100">
                             <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                             <div>
-                                {userRole === "developer" || userRole === "super_admin"
+                                {userRole.includes("developer") || userRole.includes("super_admin")
                                     ? <span>あなたの権限では、<strong>「テナント全体共通」</strong>のファイルとしてアップロードされます。</span>
                                     : <span>あなたの権限では、<strong>「自校舎専用」</strong>のファイルとしてアップロードされます。</span>
                                 }
                             </div>
                         </div>
 
-                        {/* 🌟 ファイル選択（onchange変更） */}
                         <div className="space-y-4">
                             <div className="space-y-1.5">
                                 <Label className="text-gray-700">ファイル {editingId ? <span className="text-xs text-gray-400">(変更時のみ)</span> : <span className="text-red-500">*</span>}</Label>
@@ -363,7 +377,7 @@ export default function TeachingMaterialManagement() {
             </div>
 
             {/* =========================================
-                [右列] 🌟 スクロール制御を適用したリスト
+                [右列] スクロール制御を適用したリスト
             ========================================= */}
             <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full min-h-0 pb-10">
                 <Tabs defaultValue="materials" className="w-full h-full flex flex-col min-h-0">
@@ -377,13 +391,13 @@ export default function TeachingMaterialManagement() {
                     <TabsContent value="materials" className="mt-4 flex-1 min-h-0 relative [&>div]:h-full overflow-hidden">
                         <div className="border rounded-lg bg-white h-full overflow-y-auto shadow-sm">
                             <Table>
-                                {/* 🌟 stickyヘッダー */}
                                 <TableHeader className="sticky top-0 bg-gray-50 z-10 ring-1 ring-gray-200">
                                     <TableRow>
                                         <TableHead className="font-bold">タイトル</TableHead>
                                         <TableHead className="font-bold w-24">公開範囲</TableHead>
                                         <TableHead className="font-bold">タグ</TableHead>
-                                        <TableHead className="text-right font-bold w-36">操作</TableHead>
+                                        {/* ボタンが減ったので幅を少し調整 */}
+                                        <TableHead className="text-right font-bold w-32">操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -405,11 +419,8 @@ export default function TeachingMaterialManagement() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    {/* 詳細・DLボタン */}
-                                                    <Button variant="outline" size="sm" onClick={() => setSelectedMemo(m)} className="h-7 text-xs px-2 text-gray-500"><Search className="w-3 h-3 mr-1" />詳細</Button>
+                                                    {/* DL・編集・削除のみ配置 */}
                                                     <Button variant="ghost" size="icon" onClick={() => handleDownload(m.id, 'material')} className="h-7 w-7 text-gray-500 hover:text-blue-600"><Download className="w-4 h-4" /></Button>
-
-                                                    {/* 🌟 権限チェックと編集不可ラベルの復活 */}
                                                     {canEditOrDelete(m) ? (
                                                         <>
                                                             <Button variant="ghost" size="icon" onClick={() => handleEditMaterial(m)} className="h-7 w-7 text-gray-500 hover:text-indigo-600"><Edit className="w-4 h-4" /></Button>
@@ -437,7 +448,7 @@ export default function TeachingMaterialManagement() {
                                         <TableHead className="font-bold">ファイル</TableHead>
                                         <TableHead className="font-bold w-24">公開範囲</TableHead>
                                         <TableHead className="font-bold">タグ</TableHead>
-                                        <TableHead className="text-right font-bold w-36">操作</TableHead>
+                                        <TableHead className="text-right font-bold w-32">操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -465,11 +476,7 @@ export default function TeachingMaterialManagement() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    {/* 詳細・DLボタン */}
-                                                    <Button variant="outline" size="sm" onClick={() => setSelectedMemo(file)} className="h-7 text-xs px-2 text-gray-500"><Search className="w-3 h-3 mr-1" />詳細</Button>
                                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(file.id, 'route')}><Download className="w-4 h-4 text-blue-500" /></Button>
-
-                                                    {/* 🌟 権限チェックと編集不可ラベルの復活 */}
                                                     {canEditOrDelete(file) ? (
                                                         <>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditRoute(file)}><Edit className="w-4 h-4 text-gray-500 hover:text-indigo-600" /></Button>
@@ -488,7 +495,7 @@ export default function TeachingMaterialManagement() {
                         </div>
                     </TabsContent>
 
-                    {/* --- タグ管理 (スクロール対応済) --- */}
+                    {/* --- タグ管理 --- */}
                     <TabsContent value="tags" className="mt-4 flex-1 min-h-0 overflow-y-auto">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
                             <div className="bg-white p-5 rounded-xl border shadow-sm">
@@ -523,33 +530,6 @@ export default function TeachingMaterialManagement() {
                     </TabsContent>
                 </Tabs>
             </div>
-
-            {/* 🌟 メモ（詳細）表示用モーダル */}
-            <Dialog open={!!selectedMemo} onOpenChange={(open) => !open && setSelectedMemo(null)}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                        <DialogTitle>ファイル詳細</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div>
-                            <label className="text-xs font-bold text-gray-500">タイトル</label>
-                            <p className="text-sm text-gray-800 font-medium mt-1">
-                                {selectedMemo && ('title' in selectedMemo ? selectedMemo.title : (selectedMemo as RouteTableItem).filename)}
-                            </p>
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-gray-500">内部メモ</label>
-                            <div className="mt-1 p-3 bg-yellow-50 text-yellow-900 border border-yellow-200 rounded-md text-sm min-h-[100px] whitespace-pre-wrap">
-                                {selectedMemo?.internal_memo || "メモは登録されていません。"}
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedMemo(null)}>閉じる</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
         </div>
     );
 }
