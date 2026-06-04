@@ -47,7 +47,7 @@ const MaintenanceGuard: React.FC<{ children: React.ReactNode }> = ({ children })
   // 2. メンテナンスモードONの場合
   if (settings?.maintenance_mode) {
     // 開発者(developer)ロールなら通過
-    if (user?.role === 'developer') {
+    if (user?.role === 'super_admin') {
       return <>{children}</>;
     }
     // それ以外はメンテナンス画面を表示
@@ -73,75 +73,75 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <ConfirmProvider>
         <Router>
-        <AuthProvider>
-          <SystemProvider> {/* 追加: システム設定のコンテキスト */}
+          <AuthProvider>
+            <SystemProvider> {/* 追加: システム設定のコンテキスト */}
 
-            {/* 追加: 画面最上部に常駐するお知らせバナー */}
-            <SystemBanner />
+              {/* 追加: 画面最上部に常駐するお知らせバナー */}
+              <SystemBanner />
 
-            {/* 追加: メンテナンス状態を監視するガード */}
-            <MaintenanceGuard>
-              <Routes>
-                <Route path="/login" element={<Login />} />
+              {/* 追加: メンテナンス状態を監視するガード */}
+              <MaintenanceGuard>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
 
-                <Route path="/print-report/:studentId" element={<ReportPrintView />} />
+                  <Route path="/print-report/:studentId" element={<ReportPrintView />} />
 
-                {/* 保護されたルート (ログイン必須) */}
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <DashboardLayout />
-                  </ProtectedRoute>
-                }>
-                  {/* ダッシュボードホーム */}
-                  <Route index element={<Dashboard />} />
-
-                  {/* 各機能ページ */}
-                  <Route path="past-exam" element={<PastExam />} />
-                  <Route path="materials" element={<MaterialSearch />} />
-                  <Route path="statistics" element={<Statistics />} />
-                  <Route path="bug-report" element={<BugReport />} />
-                  <Route path="changelog" element={<Changelog />} />
-                  <Route path="student/submit-results" element={<SubmitResultsPage />} />
-                  <Route path="student/transfer-request" element={<TransferRequestPage />} />
-                  <Route path="student/absence-report" element={<AbsenceReportPage />} />
-
-                  {/* 講師・管理者用ページ */}
-                  <Route path="applications-review" element={
-                    <ProtectedRoute roles={['admin', 'developer', 'user']}>
-                      <ApplicationReviewPage />
+                  {/* 保護されたルート (ログイン必須) */}
+                  <Route path="/" element={
+                    <ProtectedRoute>
+                      <DashboardLayout />
                     </ProtectedRoute>
-                  } />
+                  }>
+                    {/* ダッシュボードホーム */}
+                    <Route index element={<Dashboard />} />
 
-                  {/* 管理者専用ページ */}
-                  <Route path="admin" element={
-                    <ProtectedRoute roles={['admin', 'developer']}>
-                      <Admin />
-                    </ProtectedRoute>
-                  } />
+                    {/* 各機能ページ */}
+                    <Route path="past-exam" element={<PastExam />} />
+                    <Route path="materials" element={<MaterialSearch />} />
+                    <Route path="statistics" element={<Statistics />} />
+                    <Route path="bug-report" element={<BugReport />} />
+                    <Route path="changelog" element={<Changelog />} />
+                    <Route path="student/submit-results" element={<SubmitResultsPage />} />
+                    <Route path="student/transfer-request" element={<TransferRequestPage />} />
+                    <Route path="student/absence-report" element={<AbsenceReportPage />} />
 
-                  {/* 開発者用ページ */}
-                  <Route path="developer" element={
-                    <ProtectedRoute roles={['developer']}>
-                      <DeveloperDashboard />
-                    </ProtectedRoute>
-                  } />
+                    {/* 講師・管理者用ページ */}
+                    <Route path="applications-review" element={
+                      <ProtectedRoute roles={['admin', 'developer', 'user']}>
+                        <ApplicationReviewPage />
+                      </ProtectedRoute>
+                    } />
 
-                  {/* システム管理者用ページ */}
-                  <Route path="system_admin" element={
-                    <ProtectedRoute roles={['super_admin']}>
-                      <SystemAdminDashboard />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/system_admin/db" element={<DbViewerPage />} />
-                  <Route path="/system_admin/admins" element={<AdminManagementPage />} />
-                  <Route path="/system_admin/manual" element={<MaintenanceManualPage />} />
-                </Route>
-              </Routes>
-            </MaintenanceGuard>
+                    {/* 管理者専用ページ */}
+                    <Route path="admin" element={
+                      <ProtectedRoute roles={['admin', 'developer']}>
+                        <Admin />
+                      </ProtectedRoute>
+                    } />
 
-            <Toaster />
-          </SystemProvider>
-        </AuthProvider>
+                    {/* 開発者用ページ */}
+                    <Route path="developer" element={
+                      <ProtectedRoute roles={['developer']}>
+                        <DeveloperDashboard />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* システム管理者用ページ */}
+                    <Route path="system_admin" element={
+                      <ProtectedRoute roles={['super_admin']}>
+                        <SystemAdminDashboard />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/system_admin/db" element={<DbViewerPage />} />
+                    <Route path="/system_admin/admins" element={<AdminManagementPage />} />
+                    <Route path="/system_admin/manual" element={<MaintenanceManualPage />} />
+                  </Route>
+                </Routes>
+              </MaintenanceGuard>
+
+              <Toaster />
+            </SystemProvider>
+          </AuthProvider>
         </Router>
       </ConfirmProvider>
     </QueryClientProvider>
