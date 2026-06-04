@@ -522,7 +522,8 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
   });
 
   return (
-    <div className="h-full flex flex-col space-y-4">
+    // 🌟 修正1：外枠に min-h-0 を追加（これで親要素を突き破らなくなります）
+    <div className="h-full flex flex-col space-y-4 min-h-0">
       <div className="flex items-center justify-between px-1">
         <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
           {subjects.map((subj) => (
@@ -564,9 +565,11 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
         )}
       </div>
 
-      <div className="flex-1 overflow-auto border rounded-md">
+      {/* 🌟 修正2：ここにも min-h-0 を追加し、overflow-y-auto で縦スクロールを有効化 */}
+      <div className="flex-1 overflow-y-auto border rounded-md min-h-0 relative bg-white">
         <Table>
-          <TableHeader>
+          {/* 🌟 修正3：sticky top-0 と bg-gray-50 をつけて、見出しを上部に固定！ */}
+          <TableHeader className="sticky top-0 bg-gray-50 z-10 shadow-sm border-b">
             <TableRow>
               <TableHead>参考書</TableHead>
               <TableHead className="text-center w-24">進捗</TableHead>
@@ -574,7 +577,6 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* 🌟 変更: filteredList ではなく sortedList を使う */}
             {sortedList.length === 0 && (
               <TableRow>
                 <TableCell colSpan={3} className="text-center h-24 text-muted-foreground text-xs">
@@ -586,7 +588,6 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
               <TableRow key={item.id}>
                 <TableCell className="font-medium">
                   <div className="text-xs text-muted-foreground mb-0.5">
-                    {/* 🌟 レベルも見えた方が分かりやすいので、科目とセットで表示 */}
                     {item.subject} / {item.level || 'カスタム'}
                   </div>
                   {item.book_name}
@@ -617,6 +618,7 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
         </Table>
       </div>
 
+      {/* 編集モーダル */}
       <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -642,6 +644,7 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
         </DialogContent>
       </Dialog>
 
+      {/* 追加モーダル（変更なし） */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
         <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
           <div className="p-6 pb-2">
