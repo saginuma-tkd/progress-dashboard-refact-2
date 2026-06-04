@@ -41,8 +41,8 @@ export default function ApplicationReviewPage() {
   const absences = data?.absences || [];
 
   // 🌟 追加: 現在表示されている未承認の合計件数を計算
-  const pendingTransfersCount = transfers.filter(t => t.status === 'pending').length;
-  const pendingAbsencesCount = absences.filter(a => a.status === 'pending').length;
+  const pendingTransfersCount = transfers.filter((t: any) => t.status === 'pending').length;
+  const pendingAbsencesCount = absences.filter((a: any) => a.status === 'pending').length;
   const totalPendingCount = pendingTransfersCount + pendingAbsencesCount;
 
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
@@ -228,7 +228,7 @@ export default function ApplicationReviewPage() {
                       <tr><td colSpan={7} className="px-6 py-8 text-center text-red-500">データの取得に失敗しました。</td></tr>
                     ) : transfers.length === 0 ? (
                       <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-500 flex flex-col items-center justify-center"><Search className="w-8 h-8 text-gray-300 mb-2" />条件に一致する申請はありません</td></tr>
-                    ) : transfers.map((t) => (
+                    ) : transfers.map((t: any) => (
                       <tr key={t.id} className={`border-b transition-colors ${t.status === 'pending' ? 'bg-orange-50/30' : 'bg-white hover:bg-gray-50'}`}>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-xs">{dayjs(t.created_at).format('MM/DD HH:mm')}</td>
                         <td className="px-4 md:px-6 py-4 font-bold text-gray-900 whitespace-nowrap">{t.student_name}</td>
@@ -285,7 +285,7 @@ export default function ApplicationReviewPage() {
                       <tr><td colSpan={7} className="px-6 py-8 text-center text-red-500">データの取得に失敗しました。</td></tr>
                     ) : absences.length === 0 ? (
                       <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-500 flex flex-col items-center justify-center"><Search className="w-8 h-8 text-gray-300 mb-2" />条件に一致する報告はありません</td></tr>
-                    ) : absences.map((a) => (
+                    ) : absences.map((a: any) => (
                       <tr key={a.id} className={`border-b transition-colors ${a.status === 'pending' ? 'bg-orange-50/30' : 'bg-white hover:bg-gray-50'}`}>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-xs">{dayjs(a.created_at).format('MM/DD HH:mm')}</td>
                         <td className="px-4 md:px-6 py-4 font-bold text-gray-900 whitespace-nowrap">{a.student_name}</td>
