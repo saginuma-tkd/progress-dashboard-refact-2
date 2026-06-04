@@ -171,25 +171,32 @@ def update_student_eiken(
 
 # Pydanticスキーマの定義
 class MemoUpdate(BaseModel):
-    memo: str
+    memo: Optional[str] = None
+    shared_memo: Optional[str] = None
 
 @router.get("/{student_id}/memo")
 async def get_student_memo(
     student_id: int, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user) # ★ログインユーザーを取得
+    current_user: User = Depends(get_current_user)
 ):
-    """ログイン中講師の自分専用生徒メモを取得"""
-    # StudentInstructor テーブルから「この生徒」かつ「自分」のレコードを探す
+    """ログイン中講師の自分専用生徒メモと、全体共有メモを取得"""
+    
+    # 1. 共通メモ（Studentテーブル）を取得
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="生徒が見つかりません")
+        
+    # 2. 個別メモ（StudentInstructorテーブル）を取得
     student_link = db.query(StudentInstructor).filter(
         StudentInstructor.student_id == student_id,
         StudentInstructor.user_id == current_user.id
     ).first()
     
-    if not student_link:
-        return {"memo": ""} # 担当外などの場合はとりあえず空で返す
-        
-    return {"memo": student_link.memo or ""}
+    return {
+        "memo": student_link.memo if student_link else "",
+        "shared_memo": student.shared_memo or ""
+    }
 
 @router.patch("/{student_id}/memo")
 async def update_student_memo(
@@ -198,29 +205,39 @@ async def update_student_memo(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """ログイン中講師の自分専用生徒メモを更新"""
-    student_link = db.query(StudentInstructor).filter(
-        StudentInstructor.student_id == student_id,
-        StudentInstructor.user_id == current_user.id
-    ).first()
+    """ログイン中講師の自分専用生徒メモ、または全体共有メモを更新"""
     
-    # 担当登録がない場合の処理
-    if not student_link:
-        # ★修正: developer の場合のみ、自動的に紐付けレコードを作成する
-        if current_user.role == "developer":
-            student_link = StudentInstructor(
-                student_id=student_id,
-                user_id=current_user.id,
-                is_main=0,  # 開発者なのでメイン担当ではない設定
-                memo=req.memo
-            )
-            db.add(student_link)
+    # 🌟 1. 共通メモの保存リクエストが来た場合 (Studentテーブルを更新)
+    if req.shared_memo is not None:
+        student = db.query(Student).filter(Student.id == student_id).first()
+        if not student:
+            raise HTTPException(status_code=404, detail="生徒が見つかりません")
+        student.shared_memo = req.shared_memo
+
+    # 🌟 2. 個別メモの保存リクエストが来た場合 (StudentInstructorテーブルを更新)
+    if req.memo is not None:
+        student_link = db.query(StudentInstructor).filter(
+            StudentInstructor.student_id == student_id,
+            StudentInstructor.user_id == current_user.id
+        ).first()
+        
+        # 担当登録がない場合の処理
+        if not student_link:
+            # developer の場合のみ、自動的に紐付けレコードを作成する
+            if current_user.role == "developer":
+                student_link = StudentInstructor(
+                    student_id=student_id,
+                    user_id=current_user.id,
+                    is_main=0,  # 開発者なのでメイン担当ではない設定
+                    memo=req.memo
+                )
+                db.add(student_link)
+            else:
+                # developer以外で担当登録がない場合はエラーにする
+                raise HTTPException(status_code=403, detail="この生徒の担当に登録されていません")
         else:
-            # developer以外で担当登録がない場合はエラーにする
-            raise HTTPException(status_code=403, detail="この生徒の担当に登録されていません")
-    else:
-        # 既にレコードがある場合はメモを更新
-        student_link.memo = req.memo
+            # 既にレコードがある場合はメモを更新
+            student_link.memo = req.memo
     
     db.commit()
-    return {"message": "Memo updated successfully", "memo": student_link.memo}
+    return {"message": "Memo updated successfully"}

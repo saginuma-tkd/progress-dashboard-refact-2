@@ -47,6 +47,7 @@ class Student(Base):
     grade: Mapped[Optional[str]] = mapped_column(String)
     previous_school: Mapped[Optional[str]] = mapped_column(String)
     memo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    shared_memo = Column(String, nullable=True)
 
     __table_args__ = (UniqueConstraint('school_id', 'name', name='_school_id_name_uc'),)
 

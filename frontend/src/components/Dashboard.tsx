@@ -8,7 +8,9 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Printer, Edit2, Clock, Target, TrendingUp, Award, Calendar, Loader2, ChevronDown, Search, House, FileText, Copy, Check } from 'lucide-react';
+// 🌟 追加: Tabs コンポーネントをインポート
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Printer, Edit2, Clock, Target, TrendingUp, Award, Calendar, Loader2, ChevronDown, Search, House, FileText, Copy, Check, Users, User } from 'lucide-react';
 
 // コンポーネント読み込み
 import ProgressChart from './ProgressChart';
@@ -33,13 +35,16 @@ export default function Dashboard() {
   const [editEikenScore, setEditEikenScore] = useState("");
   const [editEikenDate, setEditEikenDate] = useState("");
 
+  // 🌟 修正: メモ用Stateを「個別」と「共通」に分割
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
-  const [memoText, setMemoText] = useState("");
+  const [activeMemoTab, setActiveMemoTab] = useState("private"); // タブの状態
+  const [privateMemoText, setPrivateMemoText] = useState("");
+  const [sharedMemoText, setSharedMemoText] = useState("");
   const [isSavingMemo, setIsSavingMemo] = useState(false);
 
   const [isCopied, setIsCopied] = useState(false);
 
-  // ★追加: 印刷ダイアログ開閉ステート
+  // 印刷ダイアログ開閉ステート
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
 
   // 表示用に整形したデータを保持するState
@@ -52,15 +57,12 @@ export default function Dashboard() {
 
   const GRADE_ORDER = ["中1", "中2", "中3", "高1", "高2", "高3", "既卒", "退塾済"];
 
-  useEffect(() => { }, []);
-
   // 1. 生徒一覧取得 & 初期選択
   useEffect(() => {
     const init = async () => {
       if (!user) return;
       try {
         if (isStudent) {
-          // studentロールの場合: 自分自身の student_id を取得
           const res = await api.get<Student>('/students/me');
           setSelectedStudentId(res.data.id);
           setLoading(false);
@@ -76,14 +78,11 @@ export default function Dashboard() {
         });
 
         setStudents(fetchedStudents);
-        // ★ 修正: ローカルストレージから前回選択した生徒のIDを取得
         const cachedId = localStorage.getItem('lastSelectedStudentId');
 
         if (cachedId && fetchedStudents.some((s: Student) => s.id === Number(cachedId))) {
-          // 記憶があった ＆ その生徒が今のリストに存在する場合
           setSelectedStudentId(Number(cachedId));
         } else if (fetchedStudents.length > 0) {
-          // 記憶がない場合は一番上の生徒を選択
           setSelectedStudentId(fetchedStudents[0].id);
         }
       } catch (e) {
@@ -102,7 +101,6 @@ export default function Dashboard() {
       const res = await api.get<DashboardData>(`/dashboard/${selectedStudentId}`);
       setData(res.data);
 
-      // === データ解析ロジック ===
       let g = res.data.eiken_grade || "";
       let s = res.data.eiken_score || "";
       let d = res.data.eiken_date || "";
@@ -121,19 +119,12 @@ export default function Dashboard() {
         g = `${g}級`;
       }
 
-      setDisplayEiken({
-        grade: g || "未登録",
-        score: s || "-",
-        date: d || "-"
-      });
-
+      setDisplayEiken({ grade: g || "未登録", score: s || "-", date: d || "-" });
       setEditEikenGrade(g);
       setEditEikenScore(s);
       setEditEikenDate(d);
 
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   };
 
   useEffect(() => {
@@ -144,47 +135,67 @@ export default function Dashboard() {
   const handleUpdateEiken = async () => {
     try {
       const combinedScore = `${editEikenGrade} / CSE ${editEikenScore} / ${editEikenDate}`;
-      await api.patch(`/students/${selectedStudentId}/eiken`, {
-        score: combinedScore
-      });
+      await api.patch(`/students/${selectedStudentId}/eiken`, { score: combinedScore });
       setIsEikenModalOpen(false);
       fetchDashboardData();
-    } catch (e) {
-      alert("更新失敗");
-    }
+    } catch (e) { alert("更新失敗"); }
   };
 
+  // 🌟 修正: コピー機能を開いているタブに応じて切り替え
   const handleCopyMemo = async () => {
     try {
-      await navigator.clipboard.writeText(memoText);
+      const textToCopy = activeMemoTab === "private" ? privateMemoText : sharedMemoText;
+      await navigator.clipboard.writeText(textToCopy);
       setIsCopied(true);
-      // 2秒後に「コピーしました」の表示を元に戻す
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       alert("クリップボードへのコピーに失敗しました");
     }
   };
 
+  // 🌟 修正: メモを開く時に「個別」と「共通」の両方を取得する
   const handleOpenMemo = async () => {
     if (!selectedStudentId) return;
     setIsMemoModalOpen(true);
-    setMemoText(""); // 初期化
+    setPrivateMemoText("");
+    setSharedMemoText("");
     try {
-      const res = await api.get<{ memo: string }>(`/students/${selectedStudentId}/memo`);
-      setMemoText(res.data.memo || "");
+      // APIから memo (個別) と shared_memo (共通) の2つを受け取る想定
+      const res = await api.get<{ memo: string, shared_memo?: string }>(`/students/${selectedStudentId}/memo`);
+      setPrivateMemoText(res.data.memo || "");
+      setSharedMemoText(res.data.shared_memo || "");
     } catch (error) {
       console.error("メモの取得に失敗しました", error);
     }
   };
 
-  const handleSaveMemo = async () => {
+  // 🌟 追加: 個別メモの保存
+  const handleSavePrivateMemo = async () => {
     if (!selectedStudentId) return;
     setIsSavingMemo(true);
     try {
-      await api.patch(`/students/${selectedStudentId}/memo`, { memo: memoText });
+      await api.patch(`/students/${selectedStudentId}/memo`, { memo: privateMemoText });
       setIsMemoModalOpen(false);
     } catch (error) {
-      alert("メモの保存に失敗しました");
+      alert("個別メモの保存に失敗しました");
+    } finally {
+      setIsSavingMemo(false);
+    }
+  };
+
+  // 🌟 追加: 共通メモの保存（確認ダイアログ付き）
+  const handleSaveSharedMemo = async () => {
+    if (!selectedStudentId) return;
+    if (!window.confirm("【注意】\nこの共通メモは、他の講師や管理者も閲覧・編集することができます。\n上書き保存してよろしいですか？")) {
+      return;
+    }
+
+    setIsSavingMemo(true);
+    try {
+      await api.patch(`/students/${selectedStudentId}/memo`, { shared_memo: sharedMemoText });
+      setIsMemoModalOpen(false);
+    } catch (error) {
+      alert("共通メモの保存に失敗しました");
     } finally {
       setIsSavingMemo(false);
     }
@@ -203,7 +214,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6 h-full p-1">
-      {/* ヘッダーエリア */}
+      {/* --- ヘッダーエリア --- */}
       <div className="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div className="flex-none">
           <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
@@ -211,7 +222,6 @@ export default function Dashboard() {
           </h2>
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
-          {/* student以外は生徒セレクターを表示 */}
           {!isStudent && students.length > 0 && (
             <StudentSelect
               students={students}
@@ -222,37 +232,30 @@ export default function Dashboard() {
               }}
             />
           )}
-          {/* メモボタン: student以外のみ */}
           {!isStudent && (
             <Button variant="outline" onClick={handleOpenMemo}>
               <FileText className="w-4 h-4 mr-2" /> メモ
             </Button>
           )}
-          {/* 印刷ボタン: student以外のみ */}
           {!isStudent && (
             <Button variant="outline" onClick={() => setIsPrintDialogOpen(true)}>
               <Printer className="w-4 h-4 mr-2" /> レポート出力
             </Button>
           )}
-          {/* studentの場合は自分の学習データであることを明示 */}
           {isStudent && (
             <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">自分のデータを表示中</span>
           )}
         </div>
       </div>
 
-      {/* メインコンテンツエリア */}
+      {/* --- メインコンテンツエリア --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start print:block h-full">
-
-        {/* === 左列: グラフ(上) + KPI(下) === */}
+        {/* 左列 */}
         <div className="flex flex-col gap-4 w-full h-full">
-
-          {/* 1. グラフコンポーネント */}
           <div id="chart-container" className="w-full flex-1 min-h-[300px] bg-white p-2 rounded border">
             <ProgressChart studentId={selectedStudentId} refreshTrigger={refreshTrigger} />
           </div>
 
-          {/* 2. KPIカード群 */}
           <div className="grid grid-cols-2 gap-4 shrink-0">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
@@ -285,14 +288,8 @@ export default function Dashboard() {
             </Card>
 
             <Card className="relative">
-              {/* 英検編集ボタン: studentは非表示 */}
               {!isStudent && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute top-2 right-2 h-6 w-6 p-0 print:hidden"
-                  onClick={() => setIsEikenModalOpen(true)}
-                >
+                <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 w-6 p-0 print:hidden" onClick={() => setIsEikenModalOpen(true)}>
                   <Edit2 className="w-3 h-3 text-gray-500" />
                 </Button>
               )}
@@ -315,20 +312,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* === 右列: 参考書リスト === */}
+        {/* 右列 */}
         <div className="w-full h-full overflow-hidden rounded-lg border bg-white shadow-sm print:h-auto print:overflow-visible">
           <div className="h-full overflow-y-auto p-1">
-            <ProgressList
-              studentId={selectedStudentId}
-              onUpdate={() => setRefreshTrigger(prev => prev + 1)}
-              readOnly={isStudent}
-            />
+            <ProgressList studentId={selectedStudentId} onUpdate={() => setRefreshTrigger(prev => prev + 1)} readOnly={isStudent} />
           </div>
         </div>
-
       </div>
 
-      {/* 英検編集モーダル */}
+      {/* --- モーダル群 --- */}
       <Dialog open={isEikenModalOpen} onOpenChange={setIsEikenModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader><DialogTitle>英検情報編集</DialogTitle></DialogHeader>
@@ -345,56 +337,77 @@ export default function Dashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="date">試験日</Label>
-              <Input id="date" value={editEikenDate} onChange={(e) => setEditEikenDate(e.target.value)} placeholder="例: 2025-06-01" />
+              <Input id="date" type="date" value={editEikenDate} onChange={(e) => setEditEikenDate(e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={handleUpdateEiken}>更新</Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={handleUpdateEiken}>更新</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ★追加: メモ編集モーダル (returnの一番下、他のDialogの隣等に配置) */}
+      {/* 🌟 修正: メモ編集モーダル (Tabsによる切り替えUI) */}
       <Dialog open={isMemoModalOpen} onOpenChange={setIsMemoModalOpen}>
-        <DialogContent className="sm:max-w-[800px] w-[95vw]">
-          <DialogHeader className="flex flex-row items-center justify-between">
-            <DialogTitle>自分専用メモ</DialogTitle>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleCopyMemo}
-              className="mt-0 flex items-center gap-2"
-            >
-              {isCopied ? (
-                <><Check className="w-4 h-4 text-green-600" /> コピー完了</>
-              ) : (
-                <><Copy className="w-4 h-4" /> 一括コピー</>
-              )}
-            </Button>
-          </DialogHeader>
-          <div className="py-2">
-            <Textarea
-              value={memoText}
-              onChange={(e) => setMemoText(e.target.value)}
-              placeholder="自分だけが見れるメモを入力してください..."
-              className="min-h-[50vh] md:min-h-[500px] text-base leading-relaxed resize-y"
-            />
+        <DialogContent className="sm:max-w-[800px] w-[95vw] h-[90vh] md:h-auto flex flex-col p-0 overflow-hidden">
+          <div className="p-6 pb-2 border-b">
+            <DialogHeader className="flex flex-row items-center justify-between">
+              <DialogTitle>生徒メモ</DialogTitle>
+              <Button variant="secondary" size="sm" onClick={handleCopyMemo} className="mt-0 flex items-center gap-2 h-8">
+                {isCopied ? <><Check className="w-4 h-4 text-green-600" /> コピー完了</> : <><Copy className="w-4 h-4" /> コピー</>}
+              </Button>
+            </DialogHeader>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMemoModalOpen(false)}>キャンセル</Button>
-            <Button onClick={handleSaveMemo} disabled={isSavingMemo}>
-              {isSavingMemo ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "保存"}
-            </Button>
-          </DialogFooter>
+
+          <Tabs defaultValue="private" value={activeMemoTab} onValueChange={setActiveMemoTab} className="flex-1 flex flex-col min-h-0">
+            <div className="px-6 pt-4 shrink-0">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="private" className="flex items-center gap-2 data-[state=active]:bg-white">
+                  <User className="w-4 h-4" />
+                  個別メモ <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">(自分のみ)</span>
+                </TabsTrigger>
+                <TabsTrigger value="shared" className="flex items-center gap-2 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700">
+                  <Users className="w-4 h-4" />
+                  共通メモ <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">(全体共有)</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="flex-1 overflow-hidden p-6 pt-4">
+              <TabsContent value="private" className="h-full m-0 data-[state=active]:flex flex-col">
+                <Textarea
+                  value={privateMemoText}
+                  onChange={(e) => setPrivateMemoText(e.target.value)}
+                  placeholder="自分だけが見れるメモを入力してください..."
+                  className="flex-1 min-h-[300px] md:min-h-[400px] text-base leading-relaxed resize-none focus-visible:ring-blue-500"
+                />
+              </TabsContent>
+
+              <TabsContent value="shared" className="h-full m-0 data-[state=active]:flex flex-col">
+                <Textarea
+                  value={sharedMemoText}
+                  onChange={(e) => setSharedMemoText(e.target.value)}
+                  placeholder="【全体共有】他の講師と共有すべき引き継ぎ事項や注意点などを入力してください..."
+                  className="flex-1 min-h-[300px] md:min-h-[400px] text-base leading-relaxed resize-none bg-orange-50/30 border-orange-200 focus-visible:ring-orange-500"
+                />
+              </TabsContent>
+            </div>
+
+            <div className="p-4 border-t bg-gray-50 flex justify-end gap-2 shrink-0">
+              <Button variant="outline" onClick={() => setIsMemoModalOpen(false)}>キャンセル</Button>
+              {activeMemoTab === 'private' ? (
+                <Button onClick={handleSavePrivateMemo} disabled={isSavingMemo}>
+                  {isSavingMemo ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "個別メモを保存"}
+                </Button>
+              ) : (
+                <Button onClick={handleSaveSharedMemo} disabled={isSavingMemo} className="bg-orange-600 hover:bg-orange-700 text-white">
+                  {isSavingMemo ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "共有して保存"}
+                </Button>
+              )}
+            </div>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
-      {/* ★追加: 印刷設定ダイアログ */}
-      <PrintSettingsDialog
-        open={isPrintDialogOpen}
-        onOpenChange={setIsPrintDialogOpen}
-        studentId={selectedStudentId}
-      />
+      {/* 印刷設定ダイアログ */}
+      <PrintSettingsDialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen} studentId={selectedStudentId} />
     </div>
   );
 }

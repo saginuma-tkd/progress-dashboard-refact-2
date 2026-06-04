@@ -131,7 +131,7 @@ def get_inactive_users(session: Session = Depends(get_db), current_user: User = 
 @router.get("/list/{student_id}")
 def get_progress_list(student_id: int, session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     items = crud_progress.get_progress_list_by_student(session, student_id)
-    return [{"id": i.id, "subject": i.subject, "book_name": i.book_name, "completed_units": i.completed_units, "total_units": i.total_units} for i in items]
+    return [{"id": i.id, "subject": i.subject, "level": i.level, "book_name": i.book_name, "completed_units": i.completed_units, "total_units": i.total_units} for i in items]
 
 @router.patch("/progress/{row_id}")
 def update_progress(row_id: int, update_data: ProgressUpdate, session: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

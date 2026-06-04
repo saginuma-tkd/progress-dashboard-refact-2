@@ -52,19 +52,18 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
 
   const safeChartData = chartData || [];
 
-  // 🌟 1. ルートの順番を定義
-  const levelOrder = ["基礎徹底", "日大", "MARCH", "早慶", "地方国公立", "難関国公立", "東大", "京大"];
+  // 🌟 1. ルートの順番を定義（元の正確な名前に戻す）
+  const levelOrder = ["基礎", "基礎徹底", "日大", "MARCH", "早慶", "地方国公立", "難関国公立", "東大", "京大"];
 
   // 🌟 2. データをルート順にソートする
   const sortedData = [...safeChartData].sort((a, b) => {
-    const aIndex = levelOrder.indexOf(a.level || "その他");
-    const bIndex = levelOrder.indexOf(b.level || "その他");
-    const aRank = aIndex === -1 ? 99 : aIndex; // 定義にないものは後ろへ
-    const bRank = bIndex === -1 ? 99 : bIndex;
-    return aRank - bRank;
+    const lvlA = a.level || "その他";
+    const lvlB = b.level || "その他";
+    const aIndex = levelOrder.findIndex(keyword => lvlA.includes(keyword));
+    const bIndex = levelOrder.findIndex(keyword => lvlB.includes(keyword));
+    return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
   });
 
-  // 🌟 3. ソート済みのデータでグラフを生成
   const plotData: any[] = sortedData.map((item: any) => ({
     x: [item.completed, item.total],
     y: ["達成", "予定"],
@@ -79,36 +78,51 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
 
   if (selectedSubject !== "全体") {
     const levelTotals: Record<string, number> = {};
+
+    // 🌟 3. 集計時に名前を統一する（表記揺れによる分離を防ぐ）
     sortedData.forEach((item: any) => {
       const lvl = item.level || "その他";
-      levelTotals[lvl] = (levelTotals[lvl] || 0) + (item.total || 0);
-    });
-
-    Object.keys(levelTotals).forEach(lvl => {
-      if (!levelOrder.includes(lvl) && lvl !== "その他") levelOrder.push(lvl);
+      // levelOrderの中に含まれるキーワードがあればそれに統一
+      const matchedLevel = levelOrder.find(keyword => lvl.includes(keyword)) || "その他";
+      levelTotals[matchedLevel] = (levelTotals[matchedLevel] || 0) + (item.total || 0);
     });
 
     let currentX = 0;
     levelOrder.forEach((lvl) => {
       if (levelTotals[lvl] && levelTotals[lvl] > 0) {
+        // 基礎などの時間もしっかり足し算する（日大の位置をズレさせないため）
         currentX += levelTotals[lvl];
 
-        // 縦線を描画
-        shapes.push({
-          type: 'line',
-          x0: currentX, x1: currentX,
-          y0: -0.5, y1: 1.5,
-          line: { color: '#ef4444', width: 2, dash: 'dot' }
-        });
+        // 🌟 4. 線と文字とホバーを描画するのは指定の3レベルのみ！
+        if (["日大", "MARCH", "早慶"].includes(lvl)) {
+          shapes.push({
+            type: 'line',
+            x0: currentX, x1: currentX,
+            y0: -0.4, y1: 1.4,
+            line: { color: '#ef4444', width: 2, dash: 'dot' }
+          });
 
-        // 縦線の上にレベル名を表示
-        annotations.push({
-          x: currentX,
-          y: 1.55,
-          text: lvl,
-          showarrow: false,
-          font: { color: '#ef4444', size: 11, weight: 'bold' }
-        });
+          annotations.push({
+            x: currentX,
+            y: 1.45,
+            text: lvl,
+            showarrow: false,
+            font: { color: '#ef4444', size: 11, weight: 'bold' }
+          });
+
+          // ホバー用の透明なマーカー
+          plotData.push({
+            x: [currentX],
+            y: ["予定"],
+            type: 'scatter',
+            mode: 'markers',
+            marker: { size: 30, color: 'rgba(0,0,0,0)' },
+            hoverinfo: 'text',
+            hovertext: `🎯 ${lvl}まで: 合計 ${currentX.toFixed(1)} 時間`,
+            hoverlabel: { bgcolor: '#ef4444', font: { color: 'white', size: 12 } },
+            showlegend: false
+          });
+        }
       }
     });
   }
@@ -124,8 +138,8 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
                 key={subj}
                 onClick={() => setSelectedSubject(subj)}
                 className={`px-2 py-1 text-xs rounded-md transition-colors whitespace-nowrap border ${selectedSubject === subj
-                    ? "bg-primary text-primary-foreground border-primary font-medium"
-                    : "bg-white text-muted-foreground border-transparent hover:bg-gray-100"
+                  ? "bg-primary text-primary-foreground border-primary font-medium"
+                  : "bg-white text-muted-foreground border-transparent hover:bg-gray-100"
                   }`}
               >
                 {subj}

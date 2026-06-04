@@ -78,14 +78,26 @@ export default function ApplicationReviewPage() {
     fetchLists();
   }, [user, isAdmin]);
 
+  const triggerNavRefresh = () => {
+    window.dispatchEvent(new Event('refreshPendingCount'));
+  };
+
   const deleteTransferMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/applications/transfer/${id}`),
-    onSuccess: () => { toast.success('振替申請を削除しました'); refetch(); },
+    onSuccess: () => {
+      toast.success('振替申請を削除しました');
+      refetch();
+      triggerNavRefresh(); // 🌟 合図を飛ばす
+    },
   });
 
   const deleteAbsenceMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/applications/absence/${id}`),
-    onSuccess: () => { toast.success('欠席報告を削除しました'); refetch(); },
+    onSuccess: () => {
+      toast.success('欠席報告を削除しました');
+      refetch();
+      triggerNavRefresh(); // 🌟 合図を飛ばす
+    },
   });
 
   const confirmDeleteTransfer = (id: number) => { setDeleteTarget({ type: 'transfer', id }); setIsConfirmOpen(true); };
@@ -105,6 +117,7 @@ export default function ApplicationReviewPage() {
       toast.success('振替を承認し、生徒に連絡しました');
       setIsApproveModalOpen(false);
       refetch();
+      triggerNavRefresh(); // 🌟 合図を飛ばす
     } catch (err) {
       toast.error('承認に失敗しました');
     }
@@ -115,6 +128,7 @@ export default function ApplicationReviewPage() {
       await updateAbsenceStatus(id, status);
       toast.success('ステータスを更新しました');
       refetch();
+      triggerNavRefresh(); // 🌟 合図を飛ばす
     } catch (err) {
       toast.error('ステータスの更新に失敗しました');
     }

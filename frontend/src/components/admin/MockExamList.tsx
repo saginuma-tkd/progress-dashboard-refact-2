@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Search, Filter, BarChart3 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Search, Filter, BarChart3, Calendar, User, Layers } from 'lucide-react';
 import api from '../../lib/api';
 import { toast } from 'sonner';
 import { MockExamRecord } from '../../types';
@@ -15,6 +16,11 @@ export default function MockExamList() {
     const [filterStudent, setFilterStudent] = useState("");
     const [filterSubject, setFilterSubject] = useState("ALL");
     const [filterExamName, setFilterExamName] = useState("");
+
+    // モーダル用ステート
+    const [selectedGroupRecords, setSelectedGroupRecords] = useState<MockExamRecord[]>([]);
+    const [selectedGroupInfo, setSelectedGroupInfo] = useState<any>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         fetchExams();
@@ -30,18 +36,55 @@ export default function MockExamList() {
         }
     };
 
-    // フィルタリング処理
-    const filteredExams = exams.filter(exam => {
-        const matchStudent = exam.student_name.toLowerCase().includes(filterStudent.toLowerCase());
-        const matchSubject = filterSubject === "ALL" || exam.subject === filterSubject;
-        const matchExamName = exam.exam_name.toLowerCase().includes(filterExamName.toLowerCase());
+    // 🌟 1. データを「1回の模試（生徒＋模試名＋日付）」ごとにグループ化する！
+    const groupedExamsMap = new Map<string, any>();
+    exams.forEach(exam => {
+        const key = `${exam.student_name}_${exam.exam_name}_${exam.exam_date}`;
+        if (!groupedExamsMap.has(key)) {
+            groupedExamsMap.set(key, {
+                id: key,
+                student_name: exam.student_name,
+                student_grade: exam.student_grade,
+                exam_name: exam.exam_name,
+                exam_date: exam.exam_date,
+                subjects: [],
+                total_score: 0,
+                records: [] // モーダル表示用に元のデータも丸ごと保持
+            });
+        }
+        const group = groupedExamsMap.get(key);
+        // 科目をリストに追加
+        if (!group.subjects.includes(exam.subject)) {
+            group.subjects.push(exam.subject);
+        }
+        // 合計得点を計算
+        if (exam.score && !isNaN(Number(exam.score))) {
+            group.total_score += Number(exam.score);
+        }
+        group.records.push(exam);
+    });
+
+    const groupedExams = Array.from(groupedExamsMap.values());
+
+    // 🌟 2. フィルタリング処理（合体したデータに対して行う）
+    const filteredGroups = groupedExams.filter(group => {
+        const matchStudent = group.student_name.toLowerCase().includes(filterStudent.toLowerCase());
+        const matchSubject = filterSubject === "ALL" || group.subjects.includes(filterSubject);
+        const matchExamName = group.exam_name.toLowerCase().includes(filterExamName.toLowerCase());
         return matchStudent && matchSubject && matchExamName;
     });
 
-    // ユニークな科目リスト（データから抽出）
-    const subjects = Array.from(new Set(exams.map(e => e.subject).filter(Boolean)));
+    // ユニークな科目リスト（フィルターのドロップダウン用）
+    const subjectsList = Array.from(new Set(exams.map(e => e.subject).filter(Boolean)));
     const defaultSubjects = ["英語", "数学", "国語", "理科", "社会"];
-    const uniqueSubjects = Array.from(new Set([...defaultSubjects, ...subjects]));
+    const uniqueSubjects = Array.from(new Set([...defaultSubjects, ...subjectsList]));
+
+    // 行をクリックしたときの処理
+    const handleRowClick = (group: any) => {
+        setSelectedGroupInfo(group);
+        setSelectedGroupRecords(group.records);
+        setIsModalOpen(true);
+    };
 
     return (
         <div className="space-y-6 h-full flex flex-col">
@@ -101,52 +144,47 @@ export default function MockExamList() {
                                 <TableHead className="w-32">受験日</TableHead>
                                 <TableHead className="w-40">生徒名</TableHead>
                                 <TableHead className="w-24">学年</TableHead>
-                                <TableHead>模試名</TableHead>
-                                <TableHead className="w-24">科目</TableHead>
-                                <TableHead className="w-24 text-right">得点</TableHead>
-                                <TableHead className="w-24 text-right">偏差値</TableHead>
+                                <TableHead className="w-64">模試名</TableHead>
+                                <TableHead>受験科目</TableHead>
+                                <TableHead className="w-32 text-right">総合得点</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredExams.map((exam) => (
-                                <TableRow key={exam.id} className="hover:bg-gray-50/50">
+                            {filteredGroups.map((group) => (
+                                <TableRow
+                                    key={group.id}
+                                    onClick={() => handleRowClick(group)}
+                                    className="hover:bg-blue-50/50 cursor-pointer transition-colors"
+                                >
                                     <TableCell className="text-sm text-gray-600 font-mono">
-                                        {exam.exam_date}
+                                        {group.exam_date}
                                     </TableCell>
                                     <TableCell className="font-medium">
-                                        {exam.student_name}
+                                        {group.student_name}
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
-                                        {exam.student_grade || '-'}
+                                        {group.student_grade || '-'}
                                     </TableCell>
-                                    <TableCell>{exam.exam_name}</TableCell>
+                                    <TableCell className="font-medium text-gray-800">
+                                        {group.exam_name}
+                                    </TableCell>
                                     <TableCell>
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${exam.subject === '英語' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                exam.subject === '数学' ? 'bg-green-50 text-green-700 border-green-200' :
-                                                    exam.subject === '国語' ? 'bg-red-50 text-red-700 border-red-200' :
-                                                        'bg-gray-50 text-gray-700 border-gray-200'
-                                            }`}>
-                                            {exam.subject}
-                                        </span>
+                                        <div className="flex flex-wrap gap-1">
+                                            {group.subjects.map((subj: string) => (
+                                                <span key={subj} className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                                    {subj}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-gray-700">
-                                        {exam.score}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {exam.deviation ? (
-                                            <span className={`font-bold ${exam.deviation >= 60 ? 'text-pink-600' :
-                                                    exam.deviation >= 50 ? 'text-blue-600' :
-                                                        'text-gray-600'
-                                                }`}>
-                                                {exam.deviation}
-                                            </span>
-                                        ) : '-'}
+                                    <TableCell className="text-right font-bold text-blue-700">
+                                        {group.total_score} <span className="text-xs font-normal text-gray-500">点</span>
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {filteredExams.length === 0 && (
+                            {filteredGroups.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                                         <div className="flex flex-col items-center gap-2">
                                             <BarChart3 className="w-8 h-8 text-gray-300" />
                                             <p>データが見つかりません</p>
@@ -157,10 +195,76 @@ export default function MockExamList() {
                         </TableBody>
                     </Table>
                 </div>
-                <div className="text-xs text-muted-foreground text-right mt-2 px-2">
-                    全 {exams.length} 件中 {filteredExams.length} 件を表示
+                <div className="text-xs text-muted-foreground text-right mt-2 px-2 flex justify-between items-center">
+                    <div className="flex items-center gap-1">
+                        <Layers className="w-4 h-4" />
+                        <span>各行をクリックすると詳細スコアを確認できます</span>
+                    </div>
+                    <div>
+                        全 {groupedExams.length} 回中 {filteredGroups.length} 回を表示
+                    </div>
                 </div>
             </Card>
+
+            {/* 詳細表示モーダル */}
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl flex items-center gap-2">
+                            <BarChart3 className="w-5 h-5 text-blue-600" />
+                            成績詳細
+                        </DialogTitle>
+                        {selectedGroupInfo && (
+                            <DialogDescription className="space-y-2 pt-4">
+                                <div className="flex items-center gap-2 text-gray-800 text-base font-medium bg-gray-50 p-2 rounded-md">
+                                    <User className="w-4 h-4 text-gray-500" />
+                                    {selectedGroupInfo.student_name} <span className="text-sm font-normal text-gray-500">({selectedGroupInfo.student_grade || '-'})</span>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm text-gray-600 px-2 pt-1">
+                                    <span className="font-semibold">{selectedGroupInfo.exam_name}</span>
+                                    <span className="flex items-center gap-1">
+                                        <Calendar className="w-4 h-4" />
+                                        {selectedGroupInfo.exam_date}
+                                    </span>
+                                </div>
+                            </DialogDescription>
+                        )}
+                    </DialogHeader>
+
+                    <div className="mt-4 border rounded-md overflow-hidden">
+                        <Table>
+                            <TableHeader className="bg-gray-50">
+                                <TableRow>
+                                    <TableHead className="w-2/5">科目</TableHead>
+                                    <TableHead className="text-right w-[30%]">得点</TableHead>
+                                    <TableHead className="text-right w-[30%]">偏差値</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {selectedGroupRecords.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell className="font-medium">{item.subject}</TableCell>
+                                        <TableCell className="text-right">
+                                            {item.score !== null && item.score !== undefined ? (
+                                                <span className="font-bold">{item.score} <span className="text-xs font-normal text-gray-500">点</span></span>
+                                            ) : <span className="text-gray-300">-</span>}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {item.deviation !== null && item.deviation !== undefined ? (
+                                                <span className={`font-bold ${item.deviation >= 60 ? 'text-pink-600' :
+                                                    item.deviation >= 50 ? 'text-blue-600' : 'text-gray-600'
+                                                    }`}>
+                                                    {item.deviation}
+                                                </span>
+                                            ) : <span className="text-gray-300">-</span>}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

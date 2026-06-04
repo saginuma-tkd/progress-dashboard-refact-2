@@ -576,7 +576,7 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                     </TabsContent>
 
                     {/* === カレンダータブ === */}
-                    <TabsContent value="calendar" className="flex-1 flex flex-col p-2 md:p-4 overflow-hidden m-0 data-[state=inactive]:hidden">
+                    <TabsContent value="calendar" className="flex-1 flex flex-col p-2 md:p-4 overflow-y-auto m-0 data-[state=inactive]:hidden">
                         <div className="flex items-center justify-between mb-2 bg-white p-2 rounded border shrink-0">
                             <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}>
                                 <ChevronLeft className="w-4 h-4" />
@@ -588,19 +588,20 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                 <ChevronRight className="w-4 h-4" />
                             </Button>
                         </div>
-                        <div id="calendar-view" className="flex-1 bg-white border rounded-md overflow-hidden flex flex-col">
-                            <div className="grid grid-cols-7 border-b bg-gray-50 text-center py-1 text-[10px] md:text-sm font-medium shrink-0">
+
+                        <div id="calendar-view" className="flex-1 bg-white border rounded-md flex flex-col min-h-[600px] md:min-h-[800px]">
+                            <div className="grid grid-cols-7 border-b bg-gray-50 text-center py-2 text-[10px] md:text-sm font-medium shrink-0">
                                 <div className="text-red-500">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div className="text-blue-500">土</div>
                             </div>
                             <div className="flex-1 grid grid-cols-7 grid-rows-5">
                                 {calendarDays.map((day, i) => (
-                                    <div key={i} className={`border-b border-r p-1 flex flex-col overflow-hidden ${!day ? 'bg-gray-50' : ''} ${(i + 1) % 7 === 0 ? 'border-r-0' : ''}`}>
+                                    <div key={i} className={`border-b border-r p-1 md:p-2 flex flex-col overflow-hidden ${!day ? 'bg-gray-50' : ''} ${(i + 1) % 7 === 0 ? 'border-r-0' : ''}`}>
                                         {day && (
                                             <>
-                                                <div className="text-[10px] md:text-xs font-bold text-gray-500 mb-0.5">{day}</div>
-                                                <div className="flex-1 flex flex-col gap-0.5 overflow-y-auto scrollbar-hide">
+                                                <div className="text-[10px] md:text-xs font-bold text-gray-500 mb-1">{day}</div>
+                                                <div className="flex-1 flex flex-col gap-1 overflow-y-auto scrollbar-hide">
                                                     {getDayEvents(day).map((ev, j) => (
-                                                        <div key={j} className={`text-[8px] md:text-[9px] px-0.5 md:px-1 py-0.5 rounded border truncate ${ev.color} leading-tight`}>
+                                                        <div key={j} className={`text-[9px] md:text-xs px-1 md:px-1.5 py-0.5 md:py-1 rounded border truncate ${ev.color} leading-tight shadow-sm`}>
                                                             <span className="font-bold mr-0.5">[{ev.type.slice(0, 1)}]</span><span className="hidden md:inline">{ev.title}</span>
                                                         </div>
                                                     ))}

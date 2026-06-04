@@ -35,17 +35,30 @@ export default function DashboardLayout() {
     const [pendingCount, setPendingCount] = useState(0);
 
     useEffect(() => {
+        const fetchPendingCount = () => {
+            if (user && ['user', 'admin', 'developer'].includes(user.role)) {
+                api.get('/applications/pending-count')
+                    .then(res => setPendingCount(res.data.count))
+                    .catch(err => console.error("未承認申請の取得に失敗:", err));
+            }
+        };
+
         if (user?.role === 'student') {
             api.get('students/me')
                 .then(res => setStudentPlofile(res.data))
                 .catch(err => console.error(err));
-        } else if (user && ['user', 'admin', 'developer'].includes(user.role)) {
-            // 🌟 講師や管理者の場合は未承認の件数を取得
-            api.get('/applications/pending-count')
-                .then(res => setPendingCount(res.data.count))
-                .catch(err => console.error("未承認申請の取得に失敗:", err));
+        } else {
+            fetchPendingCount(); // 初回とページ遷移時に取得
         }
-    }, [user, location.pathname]); // ページ遷移時にも再取得して最新に保つ
+
+        // 🌟 ここを追加！: ページ側から「refreshPendingCount」の合図が来たら再取得する
+        window.addEventListener('refreshPendingCount', fetchPendingCount);
+
+        // クリーンアップ
+        return () => {
+            window.removeEventListener('refreshPendingCount', fetchPendingCount);
+        };
+    }, [user, location.pathname]);
 
     const isStudent = user?.role === 'student';
 
