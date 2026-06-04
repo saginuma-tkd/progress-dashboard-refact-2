@@ -322,6 +322,7 @@ class TeachingMaterial(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String, index=True, nullable=False)
     s3_key: Mapped[str] = mapped_column(String, nullable=False)
+    file_path = Column(String, default="")
     file_size: Mapped[Optional[int]] = mapped_column(Integer)
     original_filename: Mapped[Optional[str]] = mapped_column(String)
     internal_memo: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
