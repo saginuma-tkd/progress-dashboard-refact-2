@@ -65,6 +65,7 @@ def create_material(db: Session, title: str, s3_key: str, file_size: int, origin
     db_material = models.TeachingMaterial(
         title=title,
         s3_key=s3_key,
+        file_path=s3_key,
         file_size=file_size,
         original_filename=original_filename,
         internal_memo=internal_memo,
