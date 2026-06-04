@@ -24,3 +24,4 @@ google-auth-oauthlib
 google-generativeai
 boto3
 email-validator
+line-bot-sdk
