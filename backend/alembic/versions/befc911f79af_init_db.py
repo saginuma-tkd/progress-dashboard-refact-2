@@ -17,7 +17,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # === 1. 新規テーブルの作成 ===
-    # Branchの代わりとなる schools テーブルを新規作成
+    
+    # 🌟 追加：一番最初に tenants テーブルを作成する！
+    op.create_table('tenants',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('name', sa.String(), nullable=False),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_tenants_id'), 'tenants', ['id'], unique=False)
+    op.create_index(op.f('ix_tenants_name'), 'tenants', ['name'], unique=True)
+
+    # 次に schools テーブルを作成 (tenant_idを外部キーとして持つ)
     op.create_table('schools',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('tenant_id', sa.Integer(), nullable=False),
