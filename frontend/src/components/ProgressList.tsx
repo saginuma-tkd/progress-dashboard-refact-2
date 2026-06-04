@@ -523,7 +523,7 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
 
   return (
     // 🌟 修正1：外枠に min-h-0 を追加（これで親要素を突き破らなくなります）
-    <div className="h-full flex flex-col space-y-4 min-h-0">
+    <div className="h-[600px] flex flex-col space-y-4">
       <div className="flex items-center justify-between px-1">
         <div className="flex space-x-2 overflow-x-auto scrollbar-hide">
           {subjects.map((subj) => (
@@ -541,7 +541,7 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
         </div>
 
         {!readOnly && (
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex items-center gap-2 ml-2 pt-2">
             <Button size="sm" className="h-7 text-xs" onClick={() => setIsAddModalOpen(true)}>
               <Plus className="w-3 h-3 mr-1" /> 追加
             </Button>
@@ -566,10 +566,10 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
       </div>
 
       {/* 🌟 修正2：ここにも min-h-0 を追加し、overflow-y-auto で縦スクロールを有効化 */}
-      <div className="flex-1 overflow-y-auto border rounded-md min-h-0 relative bg-white">
+      <div className="flex-1 min-h-0 border rounded-md relative bg-white [&>div]:h-full">
         <Table>
           {/* 🌟 修正3：sticky top-0 と bg-gray-50 をつけて、見出しを上部に固定！ */}
-          <TableHeader className="sticky top-0 bg-gray-50 z-10 shadow-sm border-b">
+          <TableHeader className="sticky top-0 z-20 bg-gray-50 ring-1 ring-gray-200 shadow-sm">
             <TableRow>
               <TableHead>参考書</TableHead>
               <TableHead className="text-center w-24">進捗</TableHead>

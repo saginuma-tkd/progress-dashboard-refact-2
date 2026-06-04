@@ -314,7 +314,7 @@ export default function Dashboard() {
 
         {/* 右列 */}
         <div className="w-full h-full overflow-hidden rounded-lg border bg-white shadow-sm print:h-auto print:overflow-visible">
-          <div className="max-h-[600px]">
+          <div className="max-h-[500px]">
             <ProgressList studentId={selectedStudentId} onUpdate={() => setRefreshTrigger(prev => prev + 1)} readOnly={isStudent} />
           </div>
         </div>
