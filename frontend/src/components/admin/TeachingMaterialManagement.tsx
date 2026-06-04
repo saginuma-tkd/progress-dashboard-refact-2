@@ -62,7 +62,9 @@ export default function TeachingMaterialManagement() {
             const savedUser = localStorage.getItem('user');
             if (savedUser) {
                 const userObj = JSON.parse(savedUser);
-                setUserRole(String(userObj.role || '').toLowerCase());
+                // 🌟 userObj直下、または userObj.user の中の両方から探すように修正！
+                const roleStr = userObj.role || userObj.user?.role || '';
+                setUserRole(String(roleStr).toLowerCase());
             }
 
             const [matRes, routeRes, subRes, detRes] = await Promise.all([
@@ -403,14 +405,18 @@ export default function TeachingMaterialManagement() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    {/* 🌟 詳細ボタン */}
+                                                    {/* 詳細・DLボタン */}
                                                     <Button variant="outline" size="sm" onClick={() => setSelectedMemo(m)} className="h-7 text-xs px-2 text-gray-500"><Search className="w-3 h-3 mr-1" />詳細</Button>
                                                     <Button variant="ghost" size="icon" onClick={() => handleDownload(m.id, 'material')} className="h-7 w-7 text-gray-500 hover:text-blue-600"><Download className="w-4 h-4" /></Button>
-                                                    {canEditOrDelete(m) && (
+
+                                                    {/* 🌟 権限チェックと編集不可ラベルの復活 */}
+                                                    {canEditOrDelete(m) ? (
                                                         <>
                                                             <Button variant="ghost" size="icon" onClick={() => handleEditMaterial(m)} className="h-7 w-7 text-gray-500 hover:text-indigo-600"><Edit className="w-4 h-4" /></Button>
                                                             <Button variant="ghost" size="icon" onClick={() => handleDelete(m.id, 'material')} className="h-7 w-7 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></Button>
                                                         </>
+                                                    ) : (
+                                                        <span className="text-[10px] text-gray-400 ml-1">編集不可</span>
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -459,14 +465,18 @@ export default function TeachingMaterialManagement() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    {/* 🌟 詳細ボタン */}
+                                                    {/* 詳細・DLボタン */}
                                                     <Button variant="outline" size="sm" onClick={() => setSelectedMemo(file)} className="h-7 text-xs px-2 text-gray-500"><Search className="w-3 h-3 mr-1" />詳細</Button>
                                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownload(file.id, 'route')}><Download className="w-4 h-4 text-blue-500" /></Button>
-                                                    {canEditOrDelete(file) && (
+
+                                                    {/* 🌟 権限チェックと編集不可ラベルの復活 */}
+                                                    {canEditOrDelete(file) ? (
                                                         <>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditRoute(file)}><Edit className="w-4 h-4 text-gray-500 hover:text-indigo-600" /></Button>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(file.id, 'route')}><Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" /></Button>
                                                         </>
+                                                    ) : (
+                                                        <span className="text-[10px] text-gray-400 ml-1">編集不可</span>
                                                     )}
                                                 </div>
                                             </TableCell>

@@ -21,12 +21,12 @@ interface RouteTableItem {
 export default function RouteTableManagement() {
     const confirm = useConfirm();
     const [files, setFiles] = useState<RouteTableItem[]>([]);
-    
+
     // 編集・アップロード用ステート
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    
+
     const [formData, setFormData] = useState({
         subject: "英語",
         level: "",
@@ -163,50 +163,50 @@ export default function RouteTableManagement() {
                     {isEditing ? <Edit className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
                     {isEditing ? "ルート表情報を編集" : "新規ルート表登録"}
                 </h4>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div className="space-y-1">
-                            <div className="flex justify-between items-center">
-                                <Label>科目</Label>
-                                <Button 
-                                    variant="link" 
-                                    className="h-auto p-0 text-[10px] text-blue-600 mb-1" 
-                                    onClick={() => {
-                                        setIsCustomSubject(!isCustomSubject);
-                                        setFormData({...formData, subject: ""});
-                                    }}
-                                >
-                                    {isCustomSubject ? "リストから選択" : "手入力する"}
-                                </Button>
-                            </div>
-                            
-                            {!isCustomSubject && uniqueSubjects.length > 0 ? (
-                                <Select value={formData.subject} onValueChange={v => setFormData({...formData, subject: v})}>
-                                    <SelectTrigger><SelectValue placeholder="科目を選択" /></SelectTrigger>
-                                    <SelectContent className="max-h-60">
-                                        {uniqueSubjects.map(subj => (
-                                            <SelectItem key={subj} value={subj}>{subj}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <Input 
-                                    placeholder="例: 英語、数学" 
-                                    value={formData.subject} 
-                                    onChange={e => setFormData({...formData, subject: e.target.value})} 
-                                />
-                            )}
+                        <div className="flex justify-between items-center">
+                            <Label>科目</Label>
+                            <Button
+                                variant="link"
+                                className="h-auto p-0 text-[10px] text-blue-600 mb-1"
+                                onClick={() => {
+                                    setIsCustomSubject(!isCustomSubject);
+                                    setFormData({ ...formData, subject: "" });
+                                }}
+                            >
+                                {isCustomSubject ? "リストから選択" : "手入力する"}
+                            </Button>
                         </div>
-                    
+
+                        {!isCustomSubject && uniqueSubjects.length > 0 ? (
+                            <Select value={formData.subject} onValueChange={v => setFormData({ ...formData, subject: v })}>
+                                <SelectTrigger><SelectValue placeholder="科目を選択" /></SelectTrigger>
+                                <SelectContent className="max-h-60">
+                                    {uniqueSubjects.map(subj => (
+                                        <SelectItem key={subj} value={subj}>{subj}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <Input
+                                placeholder="例: 英語、数学"
+                                value={formData.subject}
+                                onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                            />
+                        )}
+                    </div>
+
                     <div className="space-y-1">
                         <div className="flex justify-between items-center">
                             <Label>レベル</Label>
-                            <Button 
-                                variant="link" 
-                                className="h-auto p-0 text-[10px] text-blue-600 mb-1" 
+                            <Button
+                                variant="link"
+                                className="h-auto p-0 text-[10px] text-blue-600 mb-1"
                                 onClick={() => {
                                     setIsCustomLevel(!isCustomLevel);
-                                    setFormData({...formData, level: ""});
+                                    setFormData({ ...formData, level: "" });
                                 }}
                             >
                                 {isCustomLevel ? "リストから選択" : "手入力する"}
@@ -214,7 +214,7 @@ export default function RouteTableManagement() {
                         </div>
 
                         {!isCustomLevel && uniqueLevels.length > 0 ? (
-                            <Select value={formData.level} onValueChange={v => setFormData({...formData, level: v})}>
+                            <Select value={formData.level} onValueChange={v => setFormData({ ...formData, level: v })}>
                                 <SelectTrigger><SelectValue placeholder="レベルを選択" /></SelectTrigger>
                                 <SelectContent className="max-h-60">
                                     {uniqueLevels.map(lvl => (
@@ -223,30 +223,30 @@ export default function RouteTableManagement() {
                                 </SelectContent>
                             </Select>
                         ) : (
-                            <Input 
-                                value={formData.level} 
-                                onChange={e => setFormData({...formData, level: e.target.value})} 
-                                placeholder="例: 東大レベル" 
+                            <Input
+                                value={formData.level}
+                                onChange={e => setFormData({ ...formData, level: e.target.value })}
+                                placeholder="例: 東大レベル"
                             />
                         )}
                     </div>
-                    
+
                     <div className="space-y-1">
                         <Label>年度</Label>
-                        <Input 
-                            type="number" 
-                            value={formData.year} 
-                            onChange={e => setFormData({...formData, year: e.target.value})} 
+                        <Input
+                            type="number"
+                            value={formData.year}
+                            onChange={e => setFormData({ ...formData, year: e.target.value })}
                         />
                     </div>
-                    
+
                     <div className="space-y-1">
                         <Label>ファイル {isEditing ? "(変更する場合のみ)" : "(PDF推奨)"}</Label>
-                        <Input 
+                        <Input
                             id="route-file-upload"
-                            type="file" 
+                            type="file"
                             accept=".pdf,.png,.jpg,.jpeg"
-                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} 
+                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                             className="cursor-pointer bg-white"
                         />
                     </div>
@@ -300,19 +300,18 @@ export default function RouteTableManagement() {
                                 <TableHead className="w-32">レベル</TableHead>
                                 <TableHead className="w-24">年度</TableHead>
                                 <TableHead>ファイル名</TableHead>
-                                <TableHead className="w-32 text-right">操作</TableHead>
+                                <TableHead className="w-48 text-right">操作</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filteredFiles.map((file) => (
                                 <TableRow key={file.id} className="hover:bg-gray-50/50">
                                     <TableCell>
-                                        <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${
-                                            file.subject === '英語' ? 'bg-blue-500' :
-                                            file.subject === '数学' ? 'bg-green-500' :
-                                            file.subject === '国語' ? 'bg-red-500' :
-                                            'bg-gray-500'
-                                        }`}>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${file.subject === '英語' ? 'bg-blue-500' :
+                                                file.subject === '数学' ? 'bg-green-500' :
+                                                    file.subject === '国語' ? 'bg-red-500' :
+                                                        'bg-gray-500'
+                                            }`}>
                                             {file.subject}
                                         </span>
                                     </TableCell>
