@@ -113,14 +113,6 @@ def upload_route_table(
         if route_tag not in new_route.detail_tags:
             new_route.detail_tags.append(route_tag)
 
-        year_tag_name = f"{academic_year}年度"
-        year_tag = session.query(DetailTag).filter(DetailTag.name == year_tag_name).first()
-        if not year_tag:
-            year_tag = DetailTag(name=year_tag_name)
-            session.add(year_tag)
-        if year_tag not in new_route.detail_tags:
-            new_route.detail_tags.append(year_tag)
-
         session.add(new_route)
         session.commit()
         
