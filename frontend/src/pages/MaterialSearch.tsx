@@ -99,8 +99,8 @@ function UploadModal({ onClose, onSuccess, subjects, details }: UploadModalProps
                                     type="button"
                                     onClick={() => setCategory(val)}
                                     className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 text-sm font-medium transition-all ${category === val
-                                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                            : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
                                         }`}
                                 >
                                     <Icon className="w-4 h-4" />
@@ -260,9 +260,9 @@ export default function MaterialSearch() {
                     </h2>
                     <p className="text-xs md:text-sm text-gray-500 mt-1">教材やルート表のPDFを検索・閲覧・印刷できます</p>
                 </div>
-                <Button onClick={() => setShowUploadModal(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                {/* <Button onClick={() => setShowUploadModal(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
                     <Plus className="w-4 h-4" /> アップロード
-                </Button>
+                </Button> */}
             </div>
 
             {/* 検索フィルター */}
@@ -277,8 +277,8 @@ export default function MaterialSearch() {
                                 key={cat.id}
                                 onClick={() => setSelectedCategory(cat.id)}
                                 className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-colors ${selectedCategory === cat.id
-                                        ? 'bg-blue-50 text-blue-700'
-                                        : 'text-gray-500 hover:bg-gray-50'
+                                    ? 'bg-blue-50 text-blue-700'
+                                    : 'text-gray-500 hover:bg-gray-50'
                                     }`}
                             >
                                 <Icon className="w-4 h-4" />
@@ -324,15 +324,18 @@ export default function MaterialSearch() {
             </div>
 
             {/* 🌟 結果一覧 (テーブル表示) */}
-            <div className="flex-1 min-h-0 relative [&>div]:h-full overflow-hidden bg-white border rounded-xl shadow-sm">
-                <div className="h-full overflow-y-auto">
+            <div className="flex flex-col flex-1 min-h-[60vh] md:min-h-[600px] bg-white border rounded-xl shadow-sm overflow-hidden mt-2">
+                {/* ↑ min-h-[60vh] や 600px を指定することで、縦幅を強制的に広く保ちます */}
+
+                <div className="flex-1 overflow-y-auto relative">
                     <Table>
-                        <TableHeader className="sticky top-0 bg-gray-50 z-10 ring-1 ring-gray-200 shadow-sm">
-                            <TableRow>
-                                <TableHead className="w-20 text-center font-bold">種類</TableHead>
-                                <TableHead className="font-bold">タイトル</TableHead>
-                                <TableHead className="font-bold">タグ</TableHead>
-                                <TableHead className="text-right font-bold w-48">操作</TableHead>
+                        {/* 🌟 sticky top-0 に加え、z-20 と shadow でヘッダーを完璧に固定 */}
+                        <TableHeader className="sticky top-0 z-20 bg-gray-100 shadow-[0_1px_0_#e5e7eb]">
+                            <TableRow className="hover:bg-gray-100 border-none">
+                                <TableHead className="w-20 text-center font-bold text-gray-700">種類</TableHead>
+                                <TableHead className="font-bold text-gray-700">タイトル</TableHead>
+                                <TableHead className="font-bold text-gray-700">タグ</TableHead>
+                                <TableHead className="text-right font-bold w-48 text-gray-700">操作</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -354,14 +357,16 @@ export default function MaterialSearch() {
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             {/* 🌟 生徒画面用の「詳細（メモ）」ボタン */}
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setSelectedMemoMaterial(m)}
-                                                className="h-8 text-xs text-gray-600 border-gray-300 bg-gray-50 hover:bg-gray-100 px-2"
-                                            >
-                                                <Info className="w-3.5 h-3.5 mr-1 text-gray-400" /> 詳細
-                                            </Button>
+                                            {m.internal_memo && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setSelectedMemoMaterial(m)}
+                                                    className="h-8 text-xs text-gray-600 border-gray-300 bg-gray-50 hover:bg-gray-100 px-2"
+                                                >
+                                                    <Info className="w-3.5 h-3.5 mr-1 text-gray-400" /> 詳細
+                                                </Button>
+                                            )}
 
                                             <Button
                                                 size="sm"
@@ -377,7 +382,7 @@ export default function MaterialSearch() {
                             ))}
                             {filteredMaterials.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-48 text-center text-gray-400">
+                                    <TableCell colSpan={4} className="h-[400px] text-center text-gray-400">
                                         <Files className="w-10 h-10 mx-auto mb-3 opacity-30" />
                                         該当するファイルが見つかりませんでした
                                     </TableCell>
