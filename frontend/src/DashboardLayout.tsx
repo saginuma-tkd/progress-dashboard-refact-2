@@ -82,7 +82,8 @@ export default function DashboardLayout() {
             { name: '過去問/模試/入試', path: '/past-exam', icon: BookOpen },
             { name: '申請の確認・承認', path: '/applications-review', icon: File, badge: pendingCount }, // 🌟 バッジ情報を追加
             { name: '教材・ルート表', path: '/materials', icon: Files },
-            { name: 'バグ報告/要望', path: '/bug-report', icon: MessagesSquare }
+            { name: 'バグ報告/要望', path: '/bug-report', icon: MessagesSquare },
+            { name: '更新履歴', path: '/changelog', icon: ScrollText }
         );
     }
 
@@ -119,7 +120,8 @@ export default function DashboardLayout() {
             { name: 'テナント管理', path: '/system_admin', icon: ShieldAlert },
             { name: 'DB直接ビューア', path: '/system_admin/db', icon: Database },
             { name: '管理者権限の管理', path: '/system_admin/admins', icon: Key },
-            { name: '運営/保守マニュアル', path: '/system_admin/manual', icon: BookOpen }
+            { name: '運営/保守マニュアル', path: '/system_admin/manual', icon: BookOpen },
+            { name: '更新履歴', path: '/changelog', icon: ScrollText }
         );
     }
 
