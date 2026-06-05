@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Input } from './ui/input';
@@ -288,11 +288,6 @@ export default function Dashboard() {
             </Card>
 
             <Card className="relative">
-              {!isStudent && (
-                <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 w-6 p-0 print:hidden" onClick={() => setIsEikenModalOpen(true)}>
-                  <Edit2 className="w-3 h-3 text-gray-500" />
-                </Button>
-              )}
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                 <CardTitle className="text-sm font-medium">英検スコア</CardTitle>
                 <Award className="h-4 w-4 text-muted-foreground" />
@@ -308,6 +303,11 @@ export default function Dashboard() {
                   </div>
                 </div>
               </CardContent>
+              {!isStudent && (
+                <Button variant="ghost" size="sm" className="absolute bottom-3 right-3 h-6 w-6 p-0 print:hidden" onClick={() => setIsEikenModalOpen(true)}>
+                  <Edit2 className="w-3 h-3 text-gray-500" />
+                </Button>
+              )}
             </Card>
           </div>
         </div>
