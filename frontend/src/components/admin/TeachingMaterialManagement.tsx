@@ -172,7 +172,7 @@ export default function TeachingMaterialManagement() {
                     await api.patch(`/routes/${editingId}`, formData);
                     toast.success("ルート表情報を更新しました");
                 } else {
-                    await api.post('/routes/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+                    await api.post('/routes/upload/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
                     toast.success("ルート表をアップロードしました");
                 }
             }

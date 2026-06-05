@@ -63,7 +63,9 @@ def download_route_file(file_id: int, session: Session = Depends(get_db), curren
 # ==================================
 @router.post("/upload")
 def upload_route_table(
+    title: str = Form(...),                     # 🌟 追加: タイトルを受け取る
     academic_year: int = Form(...),
+    internal_memo: Optional[str] = Form(None),  # 🌟 追加: メモを受け取る
     subject_ids: List[int] = Form(default=[]),
     detail_tag_ids: List[int] = Form(default=[]),
     file: UploadFile = File(...),
@@ -74,29 +76,29 @@ def upload_route_table(
         raise HTTPException(status_code=400, detail="PDFファイルのみアップロード可能です")
 
     try:
-        # 🌟 S3用のキー（保存パス）を生成
+        # S3用のキー（保存パス）を生成
         file_uuid = str(uuid.uuid4())
         tenant_id = get_tenant_id_for_user(session, current_user)
         tenant_prefix = str(tenant_id) if tenant_id else "shared"
-        # パスはスラッシュで統一
         s3_key = f"tenants/{tenant_prefix}/routes/{file_uuid}_{file.filename}"
         
-        # 🌟 S3へアップロード実行！
+        # S3へアップロード実行
         s3_client.upload_file(file.file, s3_key, file.content_type or "application/pdf")
         file_size = file.size if hasattr(file, 'size') and file.size else 0
 
-        # DBへ保存
+        # 🌟 DBへ保存
         new_route = TeachingMaterial(
-            title=file.filename,
+            title=title,                        # 🌟 修正: フロントから来たタイトルを保存
+            internal_memo=internal_memo,        # 🌟 修正: フロントから来たメモを保存
             s3_key=s3_key,
             original_filename=file.filename,
             file_size=file_size,
-            academic_year=academic_year,
+            academic_year=academic_year,        # 🌟 年度もバッチリ保存
             category="route_table",
             tenant_id=tenant_id
         )
         
-        # 1. フロントから送られてきたタグの紐付け
+        # --- (タグの処理はそのまま) ---
         if subject_ids:
             subjects = session.query(SubjectTag).filter(SubjectTag.id.in_(subject_ids)).all()
             new_route.subjects.extend(subjects)
@@ -104,7 +106,6 @@ def upload_route_table(
             details = session.query(DetailTag).filter(DetailTag.id.in_(detail_tag_ids)).all()
             new_route.detail_tags.extend(details)
 
-        # 🌟 2. 「ルート表」タグの自動付与
         route_tag = session.query(DetailTag).filter(DetailTag.name == "ルート表").first()
         if not route_tag:
             route_tag = DetailTag(name="ルート表")
@@ -112,7 +113,6 @@ def upload_route_table(
         if route_tag not in new_route.detail_tags:
             new_route.detail_tags.append(route_tag)
 
-        # 🌟 3. 「〇〇年度」タグの自動付与
         year_tag_name = f"{academic_year}年度"
         year_tag = session.query(DetailTag).filter(DetailTag.name == year_tag_name).first()
         if not year_tag:
@@ -135,7 +135,9 @@ def upload_route_table(
 @router.patch("/{route_id}")
 def update_route(
     route_id: int, 
+    title: Optional[str] = Form(None),          # 🌟 追加: タイトルの更新
     academic_year: Optional[int] = Form(None),
+    internal_memo: Optional[str] = Form(None),  # 🌟 追加: メモの更新
     subject_ids: List[int] = Form(default=[]),
     detail_tag_ids: List[int] = Form(default=[]),
     file: Optional[UploadFile] = File(None),
@@ -150,8 +152,13 @@ def update_route(
     if not item:
         raise HTTPException(status_code=404, detail="Route not found")
     
+    # 🌟 受け取ったデータを上書き
+    if title is not None:
+        item.title = title
     if academic_year is not None:
         item.academic_year = academic_year
+    if internal_memo is not None:
+        item.internal_memo = internal_memo
         
     # 新しいファイルがアップロードされた場合
     if file:
