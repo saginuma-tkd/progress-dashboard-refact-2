@@ -3,8 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Tag, CheckCircle2, ChevronDown, ChevronUp, ScrollText } from 'lucide-react';
+import { Tag, ChevronDown, ChevronUp, ScrollText } from 'lucide-react';
 import api from '../lib/api';
+
+// 🌟 追加：Markdown用のライブラリをインポート
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChangelogItem {
   id: number;
@@ -26,7 +30,7 @@ const Changelog: React.FC = () => {
         setChangelogs(res.data);
         // 最新の1件だけデフォルトで開いておく
         if (res.data.length > 0) {
-            setExpandedIds([res.data[0].id]);
+          setExpandedIds([res.data[0].id]);
         }
       } catch (e) {
         console.error("Failed to fetch changelogs", e);
@@ -38,7 +42,7 @@ const Changelog: React.FC = () => {
   }, []);
 
   const toggleExpand = (id: number) => {
-    setExpandedIds(prev => 
+    setExpandedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
@@ -55,50 +59,48 @@ const Changelog: React.FC = () => {
         <ScrollArea className="h-full pr-4">
           <div className="space-y-4 pb-8">
             {loading ? (
-                <div className="text-center py-8 text-muted-foreground">読み込み中...</div>
+              <div className="text-center py-8 text-muted-foreground">読み込み中...</div>
             ) : changelogs.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">更新履歴はありません</div>
+              <div className="text-center py-8 text-muted-foreground">更新履歴はありません</div>
             ) : (
-                changelogs.map((change) => {
-                  const isExpanded = expandedIds.includes(change.id);
-                  return (
-                    <Card key={change.id} className={`transition-all duration-200 border-l-4 ${isExpanded ? 'border-l-blue-500 shadow-md' : 'border-l-gray-300 hover:border-l-blue-300'}`}>
-                        <CardHeader className="py-3 cursor-pointer" onClick={() => toggleExpand(change.id)}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <Badge variant="outline" className={`font-bold px-2 py-1 text-sm ${isExpanded ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-600'}`}>
-                                        {change.version}
-                                    </Badge>
-                                    <div>
-                                        <CardTitle className="text-base">{change.title}</CardTitle>
-                                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                            <Tag className="w-3 h-3" /> {change.release_date}
-                                        </div>
-                                    </div>
-                                </div>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
-                                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                </Button>
+              changelogs.map((change) => {
+                const isExpanded = expandedIds.includes(change.id);
+                return (
+                  <Card key={change.id} className={`transition-all duration-200 border-l-4 ${isExpanded ? 'border-l-blue-500 shadow-md' : 'border-l-gray-300 hover:border-l-blue-300'}`}>
+                    <CardHeader className="py-3 cursor-pointer" onClick={() => toggleExpand(change.id)}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Badge variant="outline" className={`font-bold px-2 py-1 text-sm ${isExpanded ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-600'}`}>
+                            {change.version}
+                          </Badge>
+                          <div>
+                            <CardTitle className="text-base">{change.title}</CardTitle>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Tag className="w-3 h-3" /> {change.release_date}
                             </div>
-                        </CardHeader>
-                        
-                        {isExpanded && (
-                            <CardContent className="pt-0 pb-4 animate-in slide-in-from-top-2 duration-200">
-                                <div className="border-t pt-3 mt-1">
-                                    <ul className="space-y-2">
-                                        {change.description.split('\n').map((line, j) => (
-                                        <li key={j} className="flex items-start gap-2 text-sm">
-                                            <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                                            <span className="leading-relaxed">{line}</span>
-                                        </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </CardContent>
-                        )}
-                    </Card>
-                  );
-                })
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </CardHeader>
+
+                    {isExpanded && (
+                      <CardContent className="pt-0 pb-4 animate-in slide-in-from-top-2 duration-200">
+                        <div className="border-t pt-4 mt-1">
+                          {/* 🌟 変更ポイント：prose クラスと ReactMarkdown で囲む */}
+                          <div className="prose prose-sm sm:prose-base prose-blue max-w-none text-gray-700">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {change.description}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })
             )}
           </div>
         </ScrollArea>

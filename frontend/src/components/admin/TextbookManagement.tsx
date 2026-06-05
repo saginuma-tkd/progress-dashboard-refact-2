@@ -1,5 +1,3 @@
-// frontend/src/components/admin/TextbookManagement.tsx
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -11,14 +9,14 @@ import { Plus, Trash2, Search, Filter, Edit, Save, X, Globe, Building2, Info } f
 import api from '../../lib/api';
 import { toast } from 'sonner';
 import { useConfirm } from '../../contexts/ConfirmContext';
-import { Badge } from '../ui/badge'; // 🌟 追加
+import { Badge } from '../ui/badge';
 
 export default function TextbookManagement() {
     const confirm = useConfirm();
     const [textbooks, setTextbooks] = useState<any[]>([]);
 
-    // 🌟 権限管理用のステート
-    const [userRole, setUserRole] = useState<string>("");
+    // 🌟 権限管理用のステート（文字列全体を保持）
+    const [userRoleStr, setUserRoleStr] = useState<string>("");
 
     // 編集モード管理
     const [isEditing, setIsEditing] = useState(false);
@@ -39,12 +37,19 @@ export default function TextbookManagement() {
 
     const fetchBooks = async () => {
         try {
-            // ユーザー情報を取得
+            // 🌟 最強の権限チェックロジックを適用
+            let rawUserData = "";
             const savedUser = localStorage.getItem('user');
-            if (savedUser) {
-                const userObj = JSON.parse(savedUser);
-                setUserRole(String(userObj.role || '').toLowerCase());
+            if (savedUser) rawUserData += savedUser;
+
+            const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+            if (token && token.includes('.')) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    rawUserData += JSON.stringify(payload);
+                } catch (e) { }
             }
+            setUserRoleStr(rawUserData.toLowerCase());
 
             const res = await api.get('/common/textbooks');
 
@@ -94,12 +99,11 @@ export default function TextbookManagement() {
     const [isCustomSubject, setIsCustomSubject] = useState(false);
     const [isCustomLevel, setIsCustomLevel] = useState(false);
 
-    // 🌟 権限チェック：この参考書を編集・削除していいか？
+    // 🌟 権限チェック：includesを使って柔軟に判定！
     const canEditOrDelete = (book: any) => {
-        // 開発者・テナント長ならすべて編集可能
-        if (userRole === "developer" || userRole === "super_admin") return true;
+        if (userRoleStr.includes("developer") || userRoleStr.includes("admin") || userRoleStr.includes("super")) return true;
         // 校舎長なら、自分の校舎専用のもの（school_idが入っているもの）だけ編集可能
-        return book.school_id !== null;
+        return book.school_id !== null && book.school_id !== undefined;
     };
 
     // 編集開始
@@ -178,11 +182,11 @@ export default function TextbookManagement() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {/* 🌟 登録範囲のガイダンス */}
+                    {/* 🌟 登録範囲のガイダンスも修正 */}
                     <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs flex items-start gap-2 border border-blue-100">
                         <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                         <div>
-                            {userRole === "developer" || userRole === "super_admin"
+                            {userRoleStr.includes("developer") || userRoleStr.includes("admin") || userRoleStr.includes("super")
                                 ? <span>あなたの権限では、<strong>「テナント全体共通」</strong>の参考書として登録されます。</span>
                                 : <span>あなたの権限では、<strong>「自校舎専用」</strong>の参考書として登録されます。</span>
                             }
@@ -249,7 +253,8 @@ export default function TextbookManagement() {
                         {!isCustomLevel && uniqueLevels.length > 0 ? (
                             <Select value={formData.level} onValueChange={v => setFormData({ ...formData, level: v })}>
                                 <SelectTrigger><SelectValue placeholder="選択してください" /></SelectTrigger>
-                                <SelectContent className="max-h-60">
+                                <SelectContent>
+                                    <SelectItem value="ALL">全レベル</SelectItem>
                                     {uniqueLevels.map((lvl: any) => (
                                         <SelectItem key={lvl} value={lvl}>{lvl}</SelectItem>
                                     ))}
@@ -329,7 +334,7 @@ export default function TextbookManagement() {
                             <TableHeader className="bg-gray-50 sticky top-0 z-10">
                                 <TableRow>
                                     <TableHead>参考書名</TableHead>
-                                    <TableHead className="w-24">公開範囲</TableHead> {/* 🌟 追加 */}
+                                    <TableHead className="w-24">公開範囲</TableHead>
                                     <TableHead className="w-24">科目</TableHead>
                                     <TableHead className="w-20">レベル</TableHead>
                                     <TableHead className="w-16 text-right">時間</TableHead>
@@ -341,9 +346,9 @@ export default function TextbookManagement() {
                                     <TableRow key={t.id} className="hover:bg-gray-50/50">
                                         <TableCell className="font-medium py-2">{t.book_name}</TableCell>
 
-                                        {/* 🌟 バッジ表示 */}
+                                        {/* バッジ表示 */}
                                         <TableCell className="py-2">
-                                            {t.school_id === null ? (
+                                            {t.school_id === null || t.school_id === undefined ? (
                                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-normal shadow-none whitespace-nowrap">
                                                     <Globe className="w-3 h-3 mr-1" />共通
                                                 </Badge>

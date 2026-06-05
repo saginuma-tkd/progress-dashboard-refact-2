@@ -106,7 +106,7 @@ export default function DeveloperDashboard() {
       {/* ヘッダー部分 */}
       <div className="flex-none">
         <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Wrench className="w-6 h-6" /> 開発者メニュー
+          <Wrench className="w-6 h-6" /> テナント管理者メニュー
         </h2>
       </div>
 

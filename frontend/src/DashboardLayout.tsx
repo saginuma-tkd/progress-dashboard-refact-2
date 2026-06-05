@@ -94,7 +94,7 @@ export default function DashboardLayout() {
             { name: '過去問/模試/入試', path: '/past-exam', icon: BookOpen },
             { name: '申請の確認・承認', path: '/applications-review', icon: File, badge: pendingCount }, // 🌟 バッジ情報を追加
             { name: '教材・ルート表', path: '/materials', icon: Files },
-            { name: '管理者メニュー', path: '/admin', icon: Settings },
+            { name: '校舎管理者メニュー', path: '/admin', icon: Settings },
             { name: 'バグ報告/要望', path: '/bug-report', icon: MessagesSquare },
             { name: '更新履歴', path: '/changelog', icon: ScrollText }
         );
@@ -103,12 +103,12 @@ export default function DashboardLayout() {
     // 💻 開発者 (developer)
     if (user?.role === 'developer') {
         navItems.push(
-            { name: '開発ダッシュボード', path: '/developer', icon: Wrench },
             { name: 'ダッシュボード', path: '/', icon: Home },
             { name: '過去問/模試/入試', path: '/past-exam', icon: BookOpen },
             { name: '申請の確認・承認', path: '/applications-review', icon: File, badge: pendingCount }, // 🌟 バッジ情報を追加
             { name: '教材・ルート表', path: '/materials', icon: Files },
-            { name: '管理者メニュー', path: '/admin', icon: Settings },
+            { name: '校舎管理者メニュー', path: '/admin', icon: Settings },
+            { name: 'テナント管理者メニュー', path: '/developer', icon: Wrench },
             { name: 'バグ報告/要望', path: '/bug-report', icon: MessagesSquare },
             { name: '更新履歴', path: '/changelog', icon: ScrollText }
         );
