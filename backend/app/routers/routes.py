@@ -31,6 +31,9 @@ def get_route_list(
             "id": r.id,
             "filename": r.original_filename,
             "academic_year": r.academic_year,
+            "title": r.title,
+            "internal_memo": r.internal_memo,
+            "school_id": r.school_id,
             "uploaded_at": r.created_at,
             "subjects": r.subjects,
             "detail_tags": r.detail_tags

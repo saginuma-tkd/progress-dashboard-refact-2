@@ -27,15 +27,13 @@ interface RouteTableItem {
 export default function TeachingMaterialManagement() {
     const confirm = useConfirm();
 
-    // --- データ一覧 ---
     const [materials, setMaterials] = useState<TeachingMaterial[]>([]);
     const [routes, setRoutes] = useState<RouteTableItem[]>([]);
     const [subjects, setSubjects] = useState<Tag[]>([]);
     const [details, setDetails] = useState<Tag[]>([]);
 
-    const [userRole, setUserRole] = useState<string>("");
+    const [userRoleStr, setUserRoleStr] = useState<string>("");
 
-    // --- 統合フォーム用ステート ---
     const [category, setCategory] = useState<'material' | 'route_table'>('material');
     const [editingId, setEditingId] = useState<number | null>(null);
     const [file, setFile] = useState<File | null>(null);
@@ -50,39 +48,22 @@ export default function TeachingMaterialManagement() {
     const [newSubjectName, setNewSubjectName] = useState('');
     const [newDetailName, setNewDetailName] = useState('');
 
-    // --- データ取得 ---
     const fetchData = async () => {
         try {
-            // ==================================================
-            // 🌟 修正ポイント: どんな保存形式でも絶対に見つけ出す権限チェック
-            // ==================================================
-            let detectedRole = "";
+            // 🌟 権限チェックの最強ハック: 保存されている全ユーザー情報を「文字列」として合体させる
+            let rawUserData = "";
+            const savedUser = localStorage.getItem('user');
+            if (savedUser) rawUserData += savedUser;
 
-            // パターン1: localStorage内のどこかに平文で保存されている場合を全探索
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key) detectedRole += (localStorage.getItem(key) || "") + " ";
-            }
-
-            // パターン2: JWTトークンの中に暗号化されて入っている場合
             const token = localStorage.getItem('access_token') || localStorage.getItem('token');
             if (token && token.includes('.')) {
                 try {
-                    // トークンのペイロード（中身）をデコードして展開
                     const payload = JSON.parse(atob(token.split('.')[1]));
-                    detectedRole += " " + String(payload.role || payload.user_type || '').toLowerCase();
-                } catch (e) {
-                    // デコード失敗時は無視
-                }
+                    rawUserData += JSON.stringify(payload);
+                } catch (e) { }
             }
-
-            // 全部合体させた文字列を小文字にしてセット
-            detectedRole = detectedRole.toLowerCase();
-            setUserRole(detectedRole);
-
-            // 念のためのデバッグ用（もしこれでも出ない場合はF12の開発者ツールを見てみてください！）
-            console.log("🔍 権限判定用の文字列:", detectedRole);
-            // ==================================================
+            // これでキーが user.role だろうと user_type だろうと、すべて拾えます
+            setUserRoleStr(rawUserData.toLowerCase());
 
             const [matRes, routeRes, subRes, detRes] = await Promise.all([
                 api.get('/materials/?category=material'),
@@ -104,9 +85,10 @@ export default function TeachingMaterialManagement() {
         fetchData();
     }, []);
 
-    // 🌟 権限チェック (includesで柔軟に判定)
+    // 🌟 あらゆる管理者権限（developer, admin, super）を許可
     const canEditOrDelete = (item: any) => {
-        if (userRole.includes("developer") || userRole.includes("super_admin")) return true;
+        if (userRoleStr.includes("developer") || userRoleStr.includes("admin") || userRoleStr.includes("super")) return true;
+        // 共通教材（school_id == null）以外は各校舎長が編集可能
         return item.school_id !== null && item.school_id !== undefined;
     };
 
@@ -114,8 +96,7 @@ export default function TeachingMaterialManagement() {
         const selectedFile = e.target.files?.[0];
         if (selectedFile) {
             setFile(selectedFile);
-            const fileNameWithoutExt = selectedFile.name.replace(/\.[^/.]+$/, "");
-            setTitle(fileNameWithoutExt);
+            setTitle(selectedFile.name.replace(/\.[^/.]+$/, ""));
         } else {
             setFile(null);
         }
@@ -134,6 +115,7 @@ export default function TeachingMaterialManagement() {
         if (fileInput) fileInput.value = '';
     };
 
+    // 🌟 プリント編集時にデータをセット
     const handleEditMaterial = (m: TeachingMaterial) => {
         setCategory('material');
         setEditingId(m.id);
@@ -145,11 +127,13 @@ export default function TeachingMaterialManagement() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    // 🌟 ルート表編集時にデータをセット（ここでAPIから取得したメモなどがしっかりセットされます！）
     const handleEditRoute = (r: RouteTableItem) => {
         setCategory('route_table');
         setEditingId(r.id);
-        setRouteYear(r.academic_year.toString());
+        setRouteYear(r.academic_year?.toString() || new Date().getFullYear().toString());
         setTitle(r.title || r.filename || '');
+        setMemo(r.internal_memo || ''); // 🌟 ここが空になる問題が解消されます！
         setSelectedSubjects(r.subjects?.map(s => s.id) || []);
         setSelectedDetails(r.detail_tags?.map(d => d.id) || []);
         setFile(null);
@@ -171,6 +155,7 @@ export default function TeachingMaterialManagement() {
         try {
             if (category === 'material') {
                 if (memo) formData.append('internal_memo', memo);
+
                 if (editingId) {
                     await api.put(`/materials/${editingId}`, formData);
                     toast.success("プリント情報を更新しました");
@@ -181,13 +166,13 @@ export default function TeachingMaterialManagement() {
             } else {
                 if (!routeYear) return toast.error("対象年度は必須です");
                 formData.append('academic_year', routeYear);
-                formData.append('category', 'route_table');
+                if (memo) formData.append('internal_memo', memo); // 🌟 ルート表のメモも送信
 
                 if (editingId) {
                     await api.patch(`/routes/${editingId}`, formData);
                     toast.success("ルート表情報を更新しました");
                 } else {
-                    await api.post('/routes/upload', formData);
+                    await api.post('/routes/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
                     toast.success("ルート表をアップロードしました");
                 }
             }
@@ -269,10 +254,7 @@ export default function TeachingMaterialManagement() {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start h-[calc(100vh-120px)] min-h-[600px]">
-
-            {/* =========================================
-                [左列] 統合アップロードフォーム
-            ========================================= */}
+            {/* 左列: アップロードフォーム */}
             <div className="lg:col-span-5 xl:col-span-4 h-full overflow-y-auto pr-2 pb-10">
                 <form onSubmit={handleUploadOrUpdate} className={`p-5 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-200'}`}>
                     <div className="flex flex-col gap-3 mb-6 border-b pb-4">
@@ -305,9 +287,9 @@ export default function TeachingMaterialManagement() {
                         <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs flex items-start gap-2 border border-blue-100">
                             <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                             <div>
-                                {userRole.includes("developer") || userRole.includes("super_admin")
-                                    ? <span>あなたの権限では、<strong>「テナント全体共通」</strong>のファイルとしてアップロードされます。</span>
-                                    : <span>あなたの権限では、<strong>「自校舎専用」</strong>のファイルとしてアップロードされます。</span>
+                                {userRoleStr.includes("developer") || userRoleStr.includes("admin") || userRoleStr.includes("super")
+                                    ? <span>あなたの権限では、<strong>「テナント全体共通」</strong>のファイルとして保存されます。</span>
+                                    : <span>あなたの権限では、<strong>「自校舎専用」</strong>のファイルとして保存されます。</span>
                                 }
                             </div>
                         </div>
@@ -323,17 +305,17 @@ export default function TeachingMaterialManagement() {
                                 <Input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="ファイル名から自動設定されます" className="bg-gray-50" />
                             </div>
 
-                            {category === 'material' ? (
-                                <div className="space-y-1.5">
-                                    <Label className="text-gray-700">内部メモ・指導ポイント</Label>
-                                    <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="教える際の注意点などを入力" className="h-20 bg-gray-50" />
-                                </div>
-                            ) : (
+                            {category === 'route_table' && (
                                 <div className="space-y-1.5">
                                     <Label className="text-gray-700">対象年度 <span className="text-red-500">*</span></Label>
                                     <Input type="number" value={routeYear} onChange={e => setRouteYear(e.target.value)} className="bg-gray-50" required />
                                 </div>
                             )}
+
+                            <div className="space-y-1.5">
+                                <Label className="text-gray-700">指導メモ・特記事項</Label>
+                                <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="教える際の注意点などを入力" className="h-20 bg-gray-50" />
+                            </div>
                         </div>
 
                         <div className="space-y-4 bg-gray-50 p-4 rounded-lg border">
@@ -376,9 +358,7 @@ export default function TeachingMaterialManagement() {
                 </form>
             </div>
 
-            {/* =========================================
-                [右列] スクロール制御を適用したリスト
-            ========================================= */}
+            {/* 右列: 一覧リスト */}
             <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full min-h-0 pb-10">
                 <Tabs defaultValue="materials" className="w-full h-full flex flex-col min-h-0">
                     <TabsList className="grid w-full grid-cols-3 bg-gray-100 h-12 p-1 shrink-0">
@@ -387,7 +367,7 @@ export default function TeachingMaterialManagement() {
                         <TabsTrigger value="tags" className="font-bold data-[state=active]:bg-white data-[state=active]:text-gray-700"><Tags className="w-4 h-4 mr-2 hidden sm:block" />タグ管理</TabsTrigger>
                     </TabsList>
 
-                    {/* --- プリント一覧 --- */}
+                    {/* プリント一覧 */}
                     <TabsContent value="materials" className="mt-4 flex-1 min-h-0 relative [&>div]:h-full overflow-hidden">
                         <div className="border rounded-lg bg-white h-full overflow-y-auto shadow-sm">
                             <Table>
@@ -396,7 +376,6 @@ export default function TeachingMaterialManagement() {
                                         <TableHead className="font-bold">タイトル</TableHead>
                                         <TableHead className="font-bold w-24">公開範囲</TableHead>
                                         <TableHead className="font-bold">タグ</TableHead>
-                                        {/* ボタンが減ったので幅を少し調整 */}
                                         <TableHead className="text-right font-bold w-32">操作</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -419,7 +398,6 @@ export default function TeachingMaterialManagement() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-1">
-                                                    {/* DL・編集・削除のみ配置 */}
                                                     <Button variant="ghost" size="icon" onClick={() => handleDownload(m.id, 'material')} className="h-7 w-7 text-gray-500 hover:text-blue-600"><Download className="w-4 h-4" /></Button>
                                                     {canEditOrDelete(m) ? (
                                                         <>
@@ -439,7 +417,7 @@ export default function TeachingMaterialManagement() {
                         </div>
                     </TabsContent>
 
-                    {/* --- ルート表一覧 --- */}
+                    {/* ルート表一覧 */}
                     <TabsContent value="routes" className="mt-4 flex-1 min-h-0 relative [&>div]:h-full overflow-hidden">
                         <div className="border rounded-lg bg-white h-full overflow-y-auto shadow-sm">
                             <Table>
@@ -495,7 +473,7 @@ export default function TeachingMaterialManagement() {
                         </div>
                     </TabsContent>
 
-                    {/* --- タグ管理 --- */}
+                    {/* タグ管理 */}
                     <TabsContent value="tags" className="mt-4 flex-1 min-h-0 overflow-y-auto">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
                             <div className="bg-white p-5 rounded-xl border shadow-sm">
