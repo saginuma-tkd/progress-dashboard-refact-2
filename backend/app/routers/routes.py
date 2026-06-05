@@ -105,14 +105,6 @@ def upload_route_table(
         if detail_tag_ids:
             details = session.query(DetailTag).filter(DetailTag.id.in_(detail_tag_ids)).all()
             new_route.detail_tags.extend(details)
-
-        route_tag = session.query(DetailTag).filter(DetailTag.name == "ルート表").first()
-        if not route_tag:
-            route_tag = DetailTag(name="ルート表")
-            session.add(route_tag)
-        if route_tag not in new_route.detail_tags:
-            new_route.detail_tags.append(route_tag)
-
         session.add(new_route)
         session.commit()
         
