@@ -217,8 +217,8 @@ export default function Dashboard() {
       {/* --- ヘッダーエリア --- */}
       <div className="flex-none flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div className="flex-none">
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <House className="w-6 h-6" /> 学習ダッシュボード
+          <h2 className="text-lg md:text-2xl font-bold tracking-tight flex items-center gap-2">
+            <House className="w-6 h-6 text-red-600" /> 学習ダッシュボード
           </h2>
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">

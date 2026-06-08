@@ -8,16 +8,16 @@ import StudentSelect from '../components/common/StudentSelect';
 import { BookOpen } from 'lucide-react';
 
 interface Student {
-  id: number;
-  name: string;
-  email: string;
-  grade?: string;
-  school?: string;
+    id: number;
+    name: string;
+    email: string;
+    grade?: string;
+    school?: string;
 }
 
 const PastExam: React.FC = () => {
     const { user } = useAuth();
-    
+
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -36,8 +36,8 @@ const PastExam: React.FC = () => {
                     return;
                 }
 
-                const res = await api.get('/students'); 
-                
+                const res = await api.get('/students');
+
                 let fetchedStudents = res.data.filter((s: Student) => s.grade !== "退塾済");
                 fetchedStudents.sort((a: Student, b: Student) => {
                     const indexA = GRADE_ORDER.indexOf(a.grade || "");
@@ -48,8 +48,8 @@ const PastExam: React.FC = () => {
                 setStudents(fetchedStudents);
 
                 const cachedId = localStorage.getItem('lastSelectedStudentId');
-                
-                if (cachedId && fetchedStudents.some((s:Student) => s.id === Number(cachedId))) {
+
+                if (cachedId && fetchedStudents.some((s: Student) => s.id === Number(cachedId))) {
                     setSelectedStudentId(Number(cachedId));
                 } else if (fetchedStudents.length > 0) {
                     setSelectedStudentId(fetchedStudents[0].id);
@@ -85,20 +85,20 @@ const PastExam: React.FC = () => {
     return (
         // 🌟 修正: スマホでは p-2 pt-2 にして余白を詰める
         <div className="h-full w-full flex flex-col p-2 md:p-8 pt-2 md:pt-6 gap-2 md:gap-4">
-            
+
             {/* ヘッダーエリア */}
             <div className="flex-none flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
                 <div className="flex-none">
                     {/* 🌟 修正: 文字サイズを小さく (text-lg md:text-2xl) */}
                     <h2 className="text-lg md:text-2xl font-bold tracking-tight flex items-center gap-2">
                         {/* 🌟 修正: hidden md:block を追加して、スマホではアイコンを消す！ */}
-                        <BookOpen className="w-6 h-6 hidden md:block" /> 
+                        <BookOpen className="w-6 h-6 text-green-600" />
                         過去問/模試/入試日程
                     </h2>
                 </div>
                 {!isStudent && students.length > 0 && (
                     <div className="w-full md:w-64">
-                        <StudentSelect 
+                        <StudentSelect
                             students={students}
                             selectedStudentId={selectedStudentId}
                             onSelect={(id) => {

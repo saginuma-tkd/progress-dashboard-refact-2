@@ -6,7 +6,7 @@ import { updateTransferStatus, updateAbsenceStatus } from '../../api/application
 import { useApplications } from '../../hooks/useApplications';
 import { toast } from 'sonner';
 import { Badge } from '../../components/ui/badge';
-import { Check, X, Clock, ShieldAlert, MessageSquare, Trash2, Search, Filter, BellRing } from 'lucide-react';
+import { Check, X, Clock, ShieldAlert, MessageSquare, Trash2, Search, Filter, BellRing, File } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
@@ -145,26 +145,27 @@ export default function ApplicationReviewPage() {
   };
 
   return (
-    <div className="container mx-auto py-2 md:py-8 px-0 md:px-4 max-w-6xl">
-      <div className="mb-6 flex flex-col md:flex-row md:justify-between md:items-center gap-4 px-4 md:px-0">
-        <div>
-          <div className="flex flex-wrap items-center gap-3 mb-2">
-            <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
-              申請の確認・承認
-              {/* 🌟 追加: タイトル横の未処理件数バッジ */}
-              {totalPendingCount > 0 && (
-                <span className="bg-red-50 text-red-600 border border-red-200 text-xs md:text-sm px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm animate-pulse">
-                  <BellRing className="w-3.5 h-3.5" /> 未処理 {totalPendingCount}件
-                </span>
-              )}
-            </h1>
-            {isInstructor && (
-              <Badge className="bg-blue-100 text-blue-800 border-blue-200 flex items-center gap-1">
-                <ShieldAlert className="w-3 h-3" /> 担当生徒のみ
-              </Badge>
+    // 🌟 1. 一番外枠を前者に統一
+    <div className="h-full w-full flex flex-col p-2 md:p-8 pt-2 md:pt-6 gap-2 md:gap-4">
+
+      {/* 🌟 2. ヘッダーエリア */}
+      <div className="flex-none flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg md:text-2xl font-bold tracking-tight flex items-center gap-2">
+            {/* 🌟 3. アイコンをスマホで非表示に */}
+            <File className="w-6 h-6 text-purple-600" />
+            申請の確認・承認
+            {totalPendingCount > 0 && (
+              <span className="bg-red-50 text-red-600 border border-red-200 text-xs md:text-sm px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1.5 shadow-sm animate-pulse">
+                <BellRing className="w-3.5 h-3.5" /> 未処理 {totalPendingCount}件
+              </span>
             )}
-          </div>
-          <p className="text-xs md:text-sm text-gray-600">生徒から送信された振替申請と欠席報告を確認・処理します。</p>
+          </h2>
+          {isInstructor && (
+            <Badge className="bg-blue-100 text-blue-800 border-blue-200 flex items-center gap-1">
+              <ShieldAlert className="w-3 h-3" /> 担当生徒のみ
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -183,9 +184,11 @@ export default function ApplicationReviewPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mx-4 md:mx-0">
-        <Tabs defaultValue="transfer" className="w-full">
-          <div className="border-b border-gray-200 bg-gray-50 p-2 md:p-3">
+      {/* 🌟 4. メイン機能エリア（flex-1 min-h-0 を設定し、カード全体を縦に伸ばす） */}
+      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <Tabs defaultValue="transfer" className="w-full h-full flex flex-col">
+          {/* タブのボタン部分 (ここはスクロールせず固定) */}
+          <div className="flex-none border-b border-gray-200 bg-gray-50 p-2 md:p-3">
             <TabsList className="grid w-full grid-cols-2 max-w-md h-auto p-1 bg-gray-200/50 rounded-lg">
               <TabsTrigger value="transfer" className="py-2 text-xs md:text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all flex items-center justify-center gap-2">
                 振替申請
@@ -206,11 +209,12 @@ export default function ApplicationReviewPage() {
             </TabsList>
           </div>
 
-          <div className="p-0">
-            <TabsContent value="transfer" className="m-0 outline-none">
-              <div className="overflow-x-auto">
+          {/* 🌟 テーブル部分 (ここだけがスクロールするように flex-1 overflow-y-auto を設定) */}
+          <div className="flex-1 min-h-0 overflow-y-auto relative">
+            <TabsContent value="transfer" className="m-0 outline-none h-full">
+              <div className="overflow-x-auto min-h-full">
                 <table className="w-full text-sm text-left text-gray-600">
-                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0 z-10 shadow-[0_1px_0_#e5e7eb]">
                     <tr>
                       <th className="px-4 md:px-6 py-4 whitespace-nowrap">送信日時</th>
                       <th className="px-4 md:px-6 py-4 whitespace-nowrap">生徒名</th>
@@ -264,10 +268,10 @@ export default function ApplicationReviewPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="absence" className="m-0 outline-none">
-              <div className="overflow-x-auto">
+            <TabsContent value="absence" className="m-0 outline-none h-full">
+              <div className="overflow-x-auto min-h-full">
                 <table className="w-full text-sm text-left text-gray-600">
-                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b sticky top-0 z-10 shadow-[0_1px_0_#e5e7eb]">
                     <tr>
                       <th className="px-4 md:px-6 py-4 whitespace-nowrap">送信日時</th>
                       <th className="px-4 md:px-6 py-4 whitespace-nowrap">生徒名</th>

@@ -12,7 +12,7 @@ export default function SchoolManagement() {
   const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newSchoolName, setNewSchoolName] = useState('');
-  
+
   // 🌟 localStorage ではなく確実に Context からユーザー情報を取得
   const { user } = useAuth();
   const userRole = user?.role || '';
@@ -26,7 +26,7 @@ export default function SchoolManagement() {
     setLoading(true);
     try {
       // 🌟 APIの末尾にスラッシュ (/) を追加 (FastAPIのリダイレクトエラー対策)
-      const res = await api.get('/schools/'); 
+      const res = await api.get('/schools/');
       setSchools(res.data);
     } catch (err) {
       console.error(err);
@@ -74,9 +74,9 @@ export default function SchoolManagement() {
             <Building2 className="w-4 h-4 text-gray-500" /> 新規校舎（ブランチ）の開設
           </h4>
           <div className="flex gap-2">
-            <Input 
-              type="text" 
-              placeholder="例: 横浜校、大岡山校" 
+            <Input
+              type="text"
+              placeholder="例: 横浜校、千葉校"
               value={newSchoolName}
               onChange={e => setNewSchoolName(e.target.value)}
               className="flex-1"

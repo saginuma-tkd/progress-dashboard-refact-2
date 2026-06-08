@@ -109,10 +109,10 @@ const TransferRequestPage: React.FC = () => {
   return (
     <div className="container mx-auto py-2 md:py-8 px-2 md:px-4 max-w-4xl">
       <div className="mb-4 md:mb-8 px-2">
-        <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2">振替申請</h1>
-        <p className="text-xs md:text-sm text-gray-600">
-          特訓の振替申請と、過去の申請結果の確認ができます。
-        </p>
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
+          <Calendar className='text-green-600' />
+          振替申請
+        </h2>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -187,7 +187,7 @@ const TransferRequestPage: React.FC = () => {
                         <Label htmlFor="reason" className="text-gray-700">振替理由 <span className="text-red-500">*</span></Label>
                         <Textarea
                           id="reason"
-                          placeholder="例: 学校の部活の大会が長引くため"
+                          placeholder="例: 部活の大会のため"
                           value={formData.reason}
                           onChange={e => setFormData({ ...formData, reason: e.target.value })}
                           required

@@ -70,10 +70,10 @@ export default function SubmitResultsPage() {
     // 🌟 全体レイアウトのスマホ最適化
     <div className="container mx-auto py-2 md:py-8 px-2 md:px-4 max-w-5xl">
       <div className="mb-4 md:mb-8 px-2">
-        <h1 className="text-xl md:text-3xl font-bold text-gray-900 mb-1 md:mb-2">成績・入試日程の管理</h1>
-        <p className="text-xs md:text-sm text-gray-600">
-          過去問の結果、模試の成績、入試日程を登録・確認できます。
-        </p>
+        <h2 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
+          <BookOpen className="text-sky-600" />
+          成績・入試日程の管理
+        </h2>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -226,8 +226,8 @@ export default function SubmitResultsPage() {
                         <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm flex flex-col gap-2 relative overflow-hidden">
                           {/* 正答率によって左端の線の色を変える装飾 */}
                           <div className={`absolute left-0 top-0 bottom-0 w-1 ${item.total_questions > 0 && (item.correct_answers / item.total_questions) >= 0.8 ? 'bg-green-500' :
-                              item.total_questions > 0 && (item.correct_answers / item.total_questions) >= 0.6 ? 'bg-blue-500' :
-                                'bg-yellow-500'
+                            item.total_questions > 0 && (item.correct_answers / item.total_questions) >= 0.6 ? 'bg-blue-500' :
+                              'bg-yellow-500'
                             }`} />
 
                           <div className="flex justify-between items-start pl-2">
@@ -294,8 +294,8 @@ export default function SubmitResultsPage() {
                               <td className="px-4 py-2 whitespace-nowrap text-gray-600">{item.exam_date}</td>
                               <td className="px-4 py-2">
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.result === '合格' ? 'bg-green-100 text-green-700' :
-                                    item.result === '不合格' ? 'bg-red-100 text-red-700' :
-                                      'bg-gray-100 text-gray-600'
+                                  item.result === '不合格' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-600'
                                   }`}>
                                   {item.result || '未受験'}
                                 </span>
@@ -316,8 +316,8 @@ export default function SubmitResultsPage() {
                               <div className="text-xs text-gray-600 mt-0.5">{item.faculty_name}</div>
                             </div>
                             <span className={`px-2 py-1 rounded text-[10px] font-medium whitespace-nowrap ${item.result === '合格' ? 'bg-green-100 text-green-700' :
-                                item.result === '不合格' ? 'bg-red-100 text-red-700' :
-                                  'bg-gray-100 text-gray-600'
+                              item.result === '不合格' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-600'
                               }`}>
                               {item.result || '未受験'}
                             </span>

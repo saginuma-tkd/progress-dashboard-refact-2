@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { Calendar } from 'lucide-react';
 
 const AbsenceReportPage: React.FC = () => {
   const [studentName, setStudentName] = useState('');
@@ -68,7 +69,10 @@ const AbsenceReportPage: React.FC = () => {
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">欠席連絡</h1>
+      <h2 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
+        <Calendar className='text-red-600' />
+        欠席連絡
+      </h2>
       <Card>
         <CardContent className="pt-6">
           {message && (
@@ -129,7 +133,7 @@ const AbsenceReportPage: React.FC = () => {
               <Label htmlFor="report_info">レポート作成用の進捗（実施済みの範囲など）</Label>
               <Textarea
                 id="report_info"
-                placeholder="例: 英語ルート表の単語帳 100〜200番まで完了しました。"
+                placeholder="例: ターゲット1900は1-200まで、英文法ポラリスは1-100まで終わりました"
                 value={formData.report_info}
                 onChange={e => setFormData({ ...formData, report_info: e.target.value })}
                 rows={4}

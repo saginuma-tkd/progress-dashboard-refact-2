@@ -51,7 +51,7 @@ const Changelog: React.FC = () => {
     <div className="h-full w-full p-4 md:p-8 pt-6 flex flex-col gap-4">
       <div className="flex-none">
         <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <ScrollText className="w-6 h-6" /> 更新履歴
+          <ScrollText className="w-6 h-6 text-sky-600" /> 更新履歴
         </h2>
       </div>
 

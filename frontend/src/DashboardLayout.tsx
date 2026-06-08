@@ -118,9 +118,10 @@ export default function DashboardLayout() {
     if (user?.role === 'super_admin') {
         navItems.push(
             { name: 'テナント管理', path: '/system_admin', icon: ShieldAlert },
-            { name: 'DB直接ビューア', path: '/system_admin/db', icon: Database },
+            { name: 'DB管理', path: '/system_admin/db', icon: Database },
             { name: '管理者権限の管理', path: '/system_admin/admins', icon: Key },
-            { name: '運営/保守マニュアル', path: '/system_admin/manual', icon: BookOpen },
+            { name: 'メンテナンス・更新履歴更新', path: '/system_admin/manual', icon: BookOpen },
+            { name: '開発者マニュアル', path: '/developer-manual', icon: Wrench },
             { name: '更新履歴', path: '/changelog', icon: ScrollText }
         );
     }

@@ -8,7 +8,7 @@ export default function MaintenanceManualPage() {
     <div className="container mx-auto py-8 px-4 max-w-5xl space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-          <BookOpen className="w-8 h-8 text-emerald-600" /> 運営・保守・システム設定
+          <BookOpen className="w-8 h-8 text-emerald-600" /> システム設定
         </h1>
         <p className="text-sm text-gray-600 mt-1">アプリ全体のシステム稼働設定、お知らせ、およびアップデート情報の管理を行います。</p>
       </div>

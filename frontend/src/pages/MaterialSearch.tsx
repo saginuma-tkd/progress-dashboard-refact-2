@@ -258,47 +258,45 @@ export default function MaterialSearch() {
                     <h2 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
                         <Files className="w-6 h-6 text-blue-600" /> 教材・ルート表検索
                     </h2>
-                    <p className="text-xs md:text-sm text-gray-500 mt-1">教材やルート表のPDFを検索・閲覧・印刷できます</p>
                 </div>
-                {/* <Button onClick={() => setShowUploadModal(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                    <Plus className="w-4 h-4" /> アップロード
-                </Button> */}
             </div>
 
             {/* 検索フィルター */}
             <div className="bg-white p-5 rounded-xl shadow-sm border space-y-4 shrink-0">
-                {/* カテゴリタブ */}
-                <div className="flex gap-2 border-b border-gray-100 pb-2 mb-4">
-                    {CATEGORIES.map(cat => {
-                        const Icon = cat.icon;
-                        const count = cat.id === 'all' ? allMaterials.length : allMaterials.filter(m => m.category === cat.id).length;
-                        return (
-                            <button
-                                key={cat.id}
-                                onClick={() => setSelectedCategory(cat.id)}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-colors ${selectedCategory === cat.id
-                                    ? 'bg-blue-50 text-blue-700'
-                                    : 'text-gray-500 hover:bg-gray-50'
-                                    }`}
-                            >
-                                <Icon className="w-4 h-4" />
-                                {cat.label}
-                                <span className={`ml-1 px-1.5 py-0.5 text-[10px] rounded-full ${selectedCategory === cat.id ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'}`}>
-                                    {count}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
+                <div className="flex justify-between">
+                    {/* カテゴリタブ */}
+                    <div className="flex gap-2 border-b border-gray-100 pb-2 mb-4">
+                        {CATEGORIES.map(cat => {
+                            const Icon = cat.icon;
+                            const count = cat.id === 'all' ? allMaterials.length : allMaterials.filter(m => m.category === cat.id).length;
+                            return (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setSelectedCategory(cat.id)}
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-colors ${selectedCategory === cat.id
+                                        ? 'bg-blue-50 text-blue-700'
+                                        : 'text-gray-500 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <Icon className="w-4 h-4" />
+                                    {cat.label}
+                                    <span className={`ml-1 px-1.5 py-0.5 text-[10px] rounded-full ${selectedCategory === cat.id ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'}`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                <div className="relative">
-                    <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                    <Input
-                        className="pl-10 text-sm py-5 bg-gray-50"
-                        placeholder="タイトルやメモの内容で検索..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                    />
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                        <Input
+                            className="pl-10 text-sm py-5 bg-gray-50"
+                            placeholder="タイトルやメモの内容で検索..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                        />
+                    </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-6 pt-2">
