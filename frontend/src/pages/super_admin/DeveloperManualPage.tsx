@@ -4,17 +4,17 @@ import remarkGfm from 'remark-gfm';
 import { BookOpen, Database, Terminal, Shield, Wrench, Code, Folder, Plug, PlusCircle, Rocket, Braces, Layers } from 'lucide-react';
 import { ScrollArea } from '../../components/ui/scroll-area';
 
-import overviewMd from '../../docs/01_overview.md?raw';
-import architectureMd from '../../docs/02_architecture.md?raw';
-import directoryMd from '../../docs/03_directory.md?raw';
-import setupMd from '../../docs/04_setup.md?raw';
-import apiMd from '../../docs/05_api.md?raw';
-import databaseMd from '../../docs/06_database.md?raw';
-import roleMd from '../../docs/07_role.md?raw';
-import addFeaturesMd from '../../docs/08_add-new-features.md?raw';
-import codingRuleMd from '../../docs/09_coding-rule.md?raw';
-import deployMd from '../../docs/10_deploy.md?raw';
-import variableMd from '../../docs/11_variable.md?raw';
+import overviewMd from '../../docs/developer_manual/01_overview.md?raw';
+import architectureMd from '../../docs/developer_manual/02_architecture.md?raw';
+import directoryMd from '../../docs/developer_manual/03_directory.md?raw';
+import setupMd from '../../docs/developer_manual/04_setup.md?raw';
+import apiMd from '../../docs/developer_manual/05_api.md?raw';
+import databaseMd from '../../docs/developer_manual/06_database.md?raw';
+import roleMd from '../../docs/developer_manual/07_role.md?raw';
+import addFeaturesMd from '../../docs/developer_manual/08_add-new-features.md?raw';
+import codingRuleMd from '../../docs/developer_manual/09_coding-rule.md?raw';
+import deployMd from '../../docs/developer_manual/10_deploy.md?raw';
+import variableMd from '../../docs/developer_manual/11_variable.md?raw';
 
 const manualData = [
     {
