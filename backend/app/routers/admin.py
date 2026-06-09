@@ -12,23 +12,17 @@ from app.models import models
 from app.crud import crud_master, crud_user, crud_student
 from app.routers.audit import log_action
 import traceback
-from app.routers.deps import get_current_user
+from app.routers.deps import get_current_user, get_current_admin_user
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Dependency to check if user is admin
-def get_current_admin(current_user: models.User = Depends(deps.get_current_user)):
-    if current_user.role not in ['admin', 'developer']:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    return current_user
 
 # 1. 新規登録
 @router.post("/textbooks")
 def create_textbook(
     data: schemas.MasterTextbookCreate, 
     session: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin)  # 🌟 追加: 誰が登録したかを受け取る
+    current_user: models.User = Depends(get_current_admin_user)  # 🌟 追加: 誰が登録したかを受け取る
 ):
     # 🌟 権限から所属を決定
     school_id = None if current_user.role in ["developer", "super_admin"] else current_user.school_id
@@ -65,7 +59,7 @@ def update_textbook(
     book_id: int,
     data: schemas.MasterTextbookUpdate,
     session: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin) # 🌟 追加
+    current_user: models.User = Depends(get_current_admin_user) # 🌟 追加
 ):
     book = session.query(models.MasterTextbook).filter(models.MasterTextbook.id == book_id).first()
     if not book:
@@ -94,7 +88,7 @@ def update_textbook(
 def delete_textbook(
     book_id: int, 
     session: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_admin) # 🌟 追加
+    current_user: models.User = Depends(get_current_admin_user) # 🌟 追加
 ):
     book = session.query(models.MasterTextbook).filter(models.MasterTextbook.id == book_id).first()
     if not book:
@@ -240,7 +234,7 @@ def get_schools(
 def read_users(
     skip: int = 0, limit: int = 100,
     db: Session = Depends(get_db),
-    admin: models.User = Depends(get_current_admin)
+    admin: models.User = Depends(get_current_admin_user)
 ):
     query = db.query(models.User)
     if admin.role == 'admin':

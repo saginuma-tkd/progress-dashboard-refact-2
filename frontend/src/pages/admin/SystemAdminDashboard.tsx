@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Building2 } from 'lucide-react';
 
 interface Tenant {
     id: number;
@@ -59,7 +60,10 @@ const SystemAdminDashboard: React.FC = () => {
 
     return (
         <div className="p-6 max-w-6xl mx-auto space-y-6">
-            <h1 className="text-xl md:text-3xl font-bold tracking-tight">システム管理 (SaaS Control)</h1>
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                テナント管理
+            </h2>
 
             <div className="grid md:grid-cols-2 gap-6">
                 {/* テナント作成フォーム */}

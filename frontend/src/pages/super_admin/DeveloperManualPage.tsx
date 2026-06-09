@@ -1,38 +1,87 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { BookOpen, Database, Terminal, Shield, Wrench, Code } from 'lucide-react';
+import { BookOpen, Database, Terminal, Shield, Wrench, Code, Folder, Plug, PlusCircle, Rocket, Braces, Layers } from 'lucide-react';
 import { ScrollArea } from '../../components/ui/scroll-area';
 
-import overviewMd from '../../docs/overview.md?raw';
-import databaseMd from '../../docs/database.md?raw';
-import authMd from '../../docs/auth.md?raw';
-import apiMd from '../../docs/api.md?raw';
+import overviewMd from '../../docs/01_overview.md?raw';
+import architectureMd from '../../docs/02_architecture.md?raw';
+import directoryMd from '../../docs/03_directory.md?raw';
+import setupMd from '../../docs/04_setup.md?raw';
+import apiMd from '../../docs/05_api.md?raw';
+import databaseMd from '../../docs/06_database.md?raw';
+import roleMd from '../../docs/07_role.md?raw';
+import addFeaturesMd from '../../docs/08_add-new-features.md?raw';
+import codingRuleMd from '../../docs/09_coding-rule.md?raw';
+import deployMd from '../../docs/10_deploy.md?raw';
+import variableMd from '../../docs/11_variable.md?raw';
 
 const manualData = [
     {
-        id: 'overview',
+        id: '01_overview',
         icon: <BookOpen className="w-4 h-4" />,
-        title: 'システム概要と技術スタック',
+        title: 'システム概要',
         content: overviewMd
     },
     {
-        id: 'database',
+        id: '02_architecture',
+        icon: <Layers className="w-4 h-4" />,
+        title: 'アーキテクチャと設計思想',
+        content: architectureMd
+    },
+    {
+        id: '03_directory',
+        icon: <Folder className="w-4 h-4" />,
+        title: 'ディレクトリ構成',
+        content: directoryMd
+    },
+    {
+        id: '04_setup',
+        icon: <Terminal className="w-4 h-4" />,
+        title: 'ローカル開発環境のセットアップ',
+        content: setupMd
+    },
+    {
+        id: '05_api',
+        icon: <Plug className="w-4 h-4" />,
+        title: 'APIエンドポイント一覧',
+        content: apiMd
+    },
+    {
+        id: '06_database',
         icon: <Database className="w-4 h-4" />,
-        title: 'データベース構造',
+        title: 'データベース設計',
         content: databaseMd
     },
     {
-        id: 'auth',
+        id: '07_role',
         icon: <Shield className="w-4 h-4" />,
-        title: '権限・セキュリティ管理',
-        content: authMd
+        title: '権限システム',
+        content: roleMd
     },
     {
-        id: 'api',
-        icon: <Terminal className="w-4 h-4" />,
-        title: 'API仕様とS3連携',
-        content: apiMd
+        id: '08_addFeatures',
+        icon: <PlusCircle className="w-4 h-4" />,
+        title: '新機能追加の手順',
+        content: addFeaturesMd
+    },
+    {
+        id: '09_codingRule',
+        icon: <Code className="w-4 h-4" />,
+        title: 'コーディングガイドライン',
+        content: codingRuleMd
+    },
+    {
+        id: '10_deploy',
+        icon: <Rocket className="w-4 h-4" />,
+        title: '本番環境デプロイ手順',
+        content: deployMd
+    },
+    {
+        id: '11_variable',
+        icon: <Braces className="w-4 h-4" />,
+        title: '変数一覧',
+        content: variableMd
     }
 ];
 
@@ -67,8 +116,8 @@ export default function DeveloperManualPage() {
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id)}
                                     className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors text-left ${activeTab === item.id
-                                            ? 'bg-indigo-50 text-indigo-700'
-                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                        ? 'bg-indigo-50 text-indigo-700'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                                         }`}
                                 >
                                     <span className={`${activeTab === item.id ? 'text-indigo-600' : 'text-gray-400'}`}>

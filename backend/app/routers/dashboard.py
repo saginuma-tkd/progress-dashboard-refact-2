@@ -11,10 +11,10 @@ import json
 
 from app.db.database import get_db
 from app.models.models import Progress, EikenResult, MasterTextbook, BulkPreset, BulkPresetBook, User, Student, AuditLog
-from app.routers.auth import get_current_user
-from app.routers.deps import get_current_admin_user
+from app.routers.deps import get_current_user, get_current_admin_user
 
 from app.crud import crud_master, crud_progress
+from app.crud.crud_progress import get_adjusted_duration
 from app.routers import deps
 from app.schemas.schemas import ProgressBatchCreate, ProgressUpdate
 
@@ -22,31 +22,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-def get_adjusted_duration(base_duration: float, book_level: str, student_dev: Optional[float]) -> float:
-    if not base_duration or not student_dev or not book_level:
-        return base_duration or 0.0
-
-    level_map = {
-        "基礎徹底": 50,
-        "日大": 60,
-        "MARCH": 70,
-        "早慶": 75
-    }
-
-    target_dev = None
-    for key, val in level_map.items():
-        if key in book_level:
-            target_dev = val
-            break
-            
-    if target_dev is None:
-        return base_duration
-
-    diff = target_dev - student_dev
-    adjusted_time = base_duration + base_duration * diff * 0.025
-    adjusted_time = max(0.1, adjusted_time)
-    return round(adjusted_time, 1)
 
 class DashboardData(BaseModel):
     student_id: int

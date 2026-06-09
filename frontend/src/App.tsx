@@ -28,8 +28,10 @@ import ApplicationReviewPage from './pages/admin/ApplicationReviewPage';
 import SystemAdminDashboard from './pages/admin/SystemAdminDashboard';
 import DbViewerPage from './pages/super_admin/DBViewerPage';
 import AdminManagementPage from './pages/super_admin/AdminManagementPage';
-import MaintenanceManualPage from './pages/super_admin/MaintenanceManualPage';
+import ChangelogManagementPage from './pages/super_admin/ChangelogManagementPage';
 import DeveloperManualPage from './pages/super_admin/DeveloperManualPage';
+import MaintenanceModeManagementPage from './pages/super_admin/MaintenanceModeManagementPage';
+import DBDownloadUploadPage from './pages/super_admin/DBDownloadUploadPage';
 
 // メンテナンスモードのガードコンポーネント
 const MaintenanceGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -134,9 +136,11 @@ const App: React.FC = () => {
                       </ProtectedRoute>
                     } />
                     <Route path="/system_admin/db" element={<DbViewerPage />} />
+                    <Route path="/system_admin/db-download-upload" element={<DBDownloadUploadPage />} />
                     <Route path="/system_admin/admins" element={<AdminManagementPage />} />
-                    <Route path="/system_admin/manual" element={<MaintenanceManualPage />} />
-                    <Route path="/developer-manual" element={<DeveloperManualPage />} />
+                    <Route path="/system_admin/changelog-management" element={<ChangelogManagementPage />} />
+                    <Route path="/system_admin/developer-manual" element={<DeveloperManualPage />} />
+                    <Route path='/system_admin/maintenance_mode' element={<MaintenanceModeManagementPage />} />
                   </Route>
                 </Routes>
               </MaintenanceGuard>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Key, UserPlus, Shield, Trash2, Lock } from 'lucide-react';
+import { Key, UserPlus, Shield, Trash2, Lock, UserCog } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -68,10 +68,9 @@ export default function AdminManagementPage() {
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Key className="w-8 h-8 text-amber-600" /> 管理者権限の管理
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">super_adminユーザーの追加、および最高管理権限の監査を行います。</p>
+          <h2 className="text-lg md:text-2xl font-bold tracking-tight flex items-center gap-2">
+            <UserCog className="w-8 h-8 text-amber-600" /> 管理者権限の管理
+          </h2>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}

@@ -15,7 +15,7 @@ def get_students_for_user(db: Session, user: models.User) -> List[models.Student
         # , selectinload(Student.eiken_results)
     )
 
-    if user.role == 'developer':
+    if user.role in ['developer', 'super_admin']:
         # Developer は全校舎の全生徒を取得
         return base_query.all()
     elif user.role == 'admin':

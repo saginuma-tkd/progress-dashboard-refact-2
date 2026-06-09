@@ -9,7 +9,13 @@ import { cn } from './lib/utils';
 import {
     LogOut, Home, BookOpen, Settings, ScrollText, MessagesSquare,
     Key, Wrench, Files, ChevronLeft, ChevronRight, File,
-    Calendar, ShieldAlert, Menu, X, Database, Bell
+    Calendar, ShieldAlert, Menu, X, Database, Bell,
+    Building2,
+    DatabaseBackup,
+    Construction,
+    UserCog,
+    FileEdit,
+    Code
 } from 'lucide-react';
 
 import {
@@ -117,11 +123,13 @@ export default function DashboardLayout() {
     // 👑 システム管理者 (super_admin)
     if (user?.role === 'super_admin') {
         navItems.push(
-            { name: 'テナント管理', path: '/system_admin', icon: ShieldAlert },
-            { name: 'DB管理', path: '/system_admin/db', icon: Database },
-            { name: '管理者権限の管理', path: '/system_admin/admins', icon: Key },
-            { name: 'メンテナンス・更新履歴更新', path: '/system_admin/manual', icon: BookOpen },
-            { name: '開発者マニュアル', path: '/developer-manual', icon: Wrench },
+            { name: 'テナント管理', path: '/system_admin', icon: Building2 },
+            { name: 'DB閲覧・編集', path: '/system_admin/db', icon: Database },
+            { name: 'DBバックアップ・復元', path: '/system_admin/db-download-upload', icon: DatabaseBackup },
+            { name: '管理者権限の管理', path: '/system_admin/admins', icon: UserCog },
+            { name: 'メンテナンスモード設定', path: '/system_admin/maintenance_mode', icon: Construction },
+            { name: '開発者マニュアル', path: '/system_admin/developer-manual', icon: Code },
+            { name: '更新履歴更新', path: '/system_admin/changelog-management', icon: FileEdit },
             { name: '更新履歴', path: '/changelog', icon: ScrollText }
         );
     }

@@ -5,35 +5,9 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from app.db.database import get_db
 from app.models.models import Progress, MasterTextbook, Student
+from app.crud.crud_progress import get_adjusted_duration
 
 router = APIRouter()
-
-# --- ★修正: ご指定の偏差値連動ロジック ---
-def get_adjusted_duration(base_duration: float, book_level: str, student_dev: Optional[float]) -> float:
-    if not base_duration or not student_dev or not book_level:
-        return base_duration or 0.0
-
-    level_map = {
-        "基礎徹底": 50,
-        "日大": 60,
-        "MARCH": 70,
-        "早慶": 75
-    }
-
-    target_dev = None
-    for key, val in level_map.items():
-        if key in book_level:
-            target_dev = val
-            break
-            
-    if target_dev is None: return base_duration
-
-    # (所要時間) = (マスタの所要時間) + (マスタの所要時間) * ((ルート数値) - (本人の偏差値)) * 0.025
-    diff = target_dev - student_dev
-    adjusted_time = base_duration + base_duration * diff * 0.025
-    
-    return round(max(0.1, adjusted_time), 1)
-
 
 # 科目リスト取得API
 @router.get("/subjects/{student_id}")

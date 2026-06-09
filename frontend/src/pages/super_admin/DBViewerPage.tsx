@@ -93,17 +93,9 @@ export default function DbViewerPage() {
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+        <h2 className="text-lg md:text-2xl font-bold tracking-tight flex items-center gap-2">
           <Database className="w-8 h-8 text-indigo-600" /> データベース直接ビューア & 管理
-        </h1>
-        <p className="text-sm text-gray-600 mt-1">全テナントのRAWデータの検証、およびシステム全体のバックアップ作成を行います。</p>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <HardDrive className="w-5 h-5 text-blue-600" /> システムバックアップの作成・履歴
         </h2>
-        <BackupManagement />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-[600px]">

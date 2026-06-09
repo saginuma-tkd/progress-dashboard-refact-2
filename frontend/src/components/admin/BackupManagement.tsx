@@ -8,37 +8,37 @@ import { toast } from 'sonner';
 export default function BackupManagement() {
     const [uploading, setUploading] = React.useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
-    
+
     const handleDownload = async () => {
         try {
             toast.info("ダウンロードを準備中...");
-            
+
             // blobとしてレスポンスを受け取る
             const response = await api.get('/backup/export', {
                 responseType: 'blob',
             });
-            
+
             // ダウンロードリンクを生成してクリックさせる
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            
+
             // ファイル名を取得 (ヘッダーから、もしくは現在時刻で生成)
             const contentDisposition = response.headers['content-disposition'];
-            let filename = `backup_${new Date().toISOString().slice(0,10)}.db`; // .db -> .json
+            let filename = `backup_${new Date().toISOString().slice(0, 10)}.db`; // .db -> .json
             if (contentDisposition) {
                 const match = contentDisposition.match(/filename="?([^"]+)"?/);
                 if (match && match[1]) filename = match[1];
             }
-            
+
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
-            
+
             // 後始末
             link.remove();
             window.URL.revokeObjectURL(url);
-            
+
             toast.success("ダウンロードを開始しました");
         } catch (e) {
             console.error(e);
@@ -74,11 +74,7 @@ export default function BackupManagement() {
     return (
         <div className="space-y-6 max-w-4xl">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Database className="w-5 h-5" /> データベースバックアップ
-                    </CardTitle>
-                </CardHeader>
+                <CardHeader></CardHeader>
                 <CardContent className="space-y-6">
                     {/* 注意書き */}
                     <div className="bg-amber-50 border border-amber-200 rounded-md p-4 flex gap-3 text-sm text-amber-800">
@@ -92,7 +88,7 @@ export default function BackupManagement() {
                             </p>
                         </div>
                     </div>
-                    
+
                     {/* アクションエリア */}
                     <div className="flex flex-col sm:flex-row gap-4 items-center justify-between border p-6 rounded-lg bg-gray-50">
                         <div className="space-y-1">
@@ -112,9 +108,9 @@ export default function BackupManagement() {
                         </div>
                         <div className="w-full sm:w-auto">
                             <input type="file" accept=".db" className="hidden" ref={fileInputRef} onChange={handleUpload} />
-                            <Button 
-                                variant="outline" 
-                                onClick={() => fileInputRef.current?.click()} 
+                            <Button
+                                variant="outline"
+                                onClick={() => fileInputRef.current?.click()}
                                 disabled={uploading}
                                 className="w-full border-red-200 hover:bg-red-50 text-red-700"
                             >
