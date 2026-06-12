@@ -2,10 +2,11 @@
 import json
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import timedelta, datetime, timezone
-from app.models.models import Progress, MasterTextbook, Student, AuditLog, EikenResult, User
+from app.models.models import Progress, MasterTextbook, Student, AuditLog, EikenResult, User, TenantSetting, RouteLevel
 from app.schemas.schemas import ProgressBatchCreate, ProgressUpdate
+from app.utils.calculator import calculate_duration  
 
 def get_progress_list_by_student(db: Session, student_id: int):
     """生徒の進捗一覧を取得（GET /list/{student_id} 用）"""
@@ -152,25 +153,45 @@ def delete_progress(db: Session, row_id: int):
     db.commit()
     return True
 
-def get_adjusted_duration(base_duration: float, book_level: str, student_dev: Optional[float]) -> float:
-    """偏差値に基づく学習時間の調整ロジック"""
-    if not base_duration or not student_dev or not book_level:
-        return base_duration or 0.0
+def get_adjusted_duration(db: Session, student: Any, base_duration: float, book_level: str) -> float:
+    """
+    テナントのカスタム数式を用いた学習時間の調整ロジック
+    """
+    if not base_duration or not book_level or getattr(student, "deviation_value", None) is None:
+        return float(base_duration or 0.0)
 
-    level_map = {"基礎徹底": 50, "日大": 60, "MARCH": 70, "早慶": 75}
-    target_dev = None
-    for key, val in level_map.items():
-        if key in book_level:
-            target_dev = val
-            break
-            
-    if target_dev is None:
-        return base_duration
+    # 🌟 修正: Studentモデルには直接 tenant_id がないため、school経由で安全に取得する
+    tenant_id = getattr(student, 'tenant_id', None)
+    
+    # tenant_id が直接取れない場合（Studentモデルの場合）は校舎IDから逆引きする
+    if not tenant_id and getattr(student, 'school_id', None):
+        from app.models.models import School # 循環参照防止のためここでインポート
+        school = db.query(School).filter(School.id == student.school_id).first()
+        tenant_id = school.tenant_id if school else None
 
-    diff = target_dev - student_dev
-    adjusted_time = base_duration + base_duration * diff * 0.025
-    adjusted_time = max(0.1, adjusted_time)
-    return round(adjusted_time, 1)
+    # それでもテナントIDが特定できない場合は安全のため計算せずに返す
+    if not tenant_id:
+        return float(base_duration)
+
+    # 取得した tenant_id を使って設定を読み込む
+    setting = db.query(TenantSetting).filter(TenantSetting.tenant_id == tenant_id).first()
+    formula = str(setting.duration_slope_formula) if setting else "1.0 * x + 0.0 * y"
+
+    level_setting = db.query(RouteLevel).filter(
+        RouteLevel.tenant_id == tenant_id,
+        RouteLevel.level_name == book_level
+    ).first()
+    
+    y_val = float(level_setting.sequence_order) if level_setting else 0.0
+    x_val = float(student.deviation_value)  # type: ignore
+    t_val = float(base_duration)
+
+    try:
+        calculated_time = calculate_duration(formula_str=formula, x=x_val, y=y_val, t=t_val)
+        return max(0.1, round(calculated_time, 1))
+    except Exception as e:
+        print(f"Duration calculation error: {e}")
+        return float(base_duration)
 
 def get_dashboard_summary(db: Session, student_id: int):
     """ダッシュボードのメイン集計処理"""
@@ -206,7 +227,7 @@ def get_dashboard_summary(db: Session, student_id: int):
                         book_level = master_book.level
             
             duration = float(duration or 0)
-            adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
+            adjusted_duration = get_adjusted_duration(db, student, float(duration or 0.0), book_level)
 
             ratio = 0.0
             if (item.total_units or 0) > 0:
@@ -264,7 +285,7 @@ def get_subject_chart_data(db: Session, student_id: int):
                 if not book_level: book_level = getattr(master_book, "level", None) or ""
                     
         duration = float(duration or 0) 
-        adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
+        adjusted_duration = get_adjusted_duration(db, student, float(duration), book_level)
         ratio = min(1.0, (item.completed_units or 0) / item.total_units)
         subject_stats[subj]["ratios"].append(ratio * 100)
         
@@ -314,7 +335,7 @@ def get_study_time_summary(db: Session, current_user: User):
                     if not book_level: book_level = getattr(master_book, "level", None) or ""
             
             duration = float(duration or 0.0)
-            adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
+            adjusted_duration = get_adjusted_duration(db, student, float(duration), book_level)
             ratio = 0.0
             if (item.total_units or 0) > 0:
                 ratio = min(1.0, (item.completed_units or 0) / item.total_units)

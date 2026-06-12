@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.models import models 
 from app.db.database import engine
 from app.core.scheduler import start_scheduler
-from app.routers import auth, external, students, admin, common, charts, dashboard, exams, routes, system, reports, backup, developer, system_status, audit, csv_import, student_report, materials, attendance, chat, applications, system_admin, schools
+from app.routers import auth, external, students, admin, common, charts, dashboard, exams, routes, system, reports, backup, developer, system_status, audit, csv_import, student_report, materials, attendance, chat, applications, system_admin, schools, tenant_config
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,6 +55,7 @@ app.include_router(attendance.router, prefix=f"{settings.API_V1_STR}/attendance"
 app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
 app.include_router(applications.router, prefix=f"{settings.API_V1_STR}/applications", tags=["applications"])
 app.include_router(schools.router, prefix=f"{settings.API_V1_STR}/schools", tags=["schools"])
+app.include_router(tenant_config.router, prefix=f"{settings.API_V1_STR}/tenant-config", tags=["tenant_config"])
 app.include_router(system_admin.router, prefix="/api/v1")
 from app.routers import fix_db
 app.include_router(fix_db.router, prefix=settings.API_V1_STR, tags=["fix"])

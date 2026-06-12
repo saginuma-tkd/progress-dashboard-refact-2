@@ -2,31 +2,28 @@
 
 from sqlalchemy.orm import Session
 from sqlalchemy import or_ # 🌟 OR条件用
-from app.models.models import MasterTextbook, User
+from app.models.models import MasterTextbook, User, Subject
 from app.schemas.schemas import MasterTextbookCreate
 from typing import List, Optional
 
 def get_all_subjects(db: Session, current_user: Optional[User] = None) -> List[str]:
-    query = db.query(MasterTextbook.subject).distinct()
+    # 🌟 修正: MasterTextbookから科目を抽出するのではなく、
+    # 🌟 テナントの「設定（Subjectテーブル）」から科目一覧を取得する
     
-    # 🌟 追加: 権限に応じて取得する科目を絞る
     if current_user and current_user.tenant_id:
-        condition = (MasterTextbook.tenant_id == current_user.tenant_id) & \
-                    or_(MasterTextbook.school_id == None, MasterTextbook.school_id == current_user.school_id)
-        query = query.filter(condition)
-
-    results = query.all()
-    subjects = [r[0] for r in results]
-    
-    subject_order = [
-        '英語', '国語', '数学', '日本史', '世界史', '政治経済', '物理', '化学', '生物'
-    ]
-    
-    sorted_subjects = sorted(
-        subjects,
-        key=lambda s: (subject_order.index(s) if s in subject_order else len(subject_order), s)
-    )
-    return sorted_subjects
+        # テナントの科目マスタを取得（ID順＝追加された順にソート）
+        subjects = db.query(Subject).filter(
+            Subject.tenant_id == current_user.tenant_id
+        ).order_by(Subject.id).all()
+        
+        # 名前だけのリストにして返す
+        return [s.name for s in subjects]
+        
+    else:
+        # 万が一 current_user がない場合（初期シード時など）は、これまで通りMasterTextbookから拾う
+        query = db.query(MasterTextbook.subject).distinct()
+        results = query.all()
+        return [r[0] for r in results]
 
 def get_master_textbooks(db: Session, subject: Optional[str] = None, current_user: Optional[User] = None) -> List[MasterTextbook]:
     query = db.query(MasterTextbook)

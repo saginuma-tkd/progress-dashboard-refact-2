@@ -1,5 +1,3 @@
-# backend/app/routers/charts.py
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
@@ -25,11 +23,13 @@ def get_student_subjects(
 def get_progress_chart(
     student_id: int,
     subject: Optional[str] = Query(None),
-    session: Session = Depends(get_db)
+    session: Session = Depends(get_db)  # 🌟 ここが session になっています
 ) -> List[Dict[str, Any]]:
     
     student = session.query(Student).filter(Student.id == student_id).first()
-    student_dev = getattr(student, "deviation_value", None)
+    # 万が一studentが見つからない場合の安全対策
+    if not student:
+        return []
 
     query = session.query(Progress).filter(Progress.student_id == student_id)
     if subject and subject != "全体":
@@ -54,9 +54,10 @@ def get_progress_chart(
                     duration = master_book.duration
                     if not book_level: book_level = master_book.level
             
-            duration = float(duration or 0)
+            duration = float(duration or 0.0)
             
-            adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
+            # 🌟 修正1: session, student, duration, book_level を正しく渡す
+            adjusted_duration = get_adjusted_duration(session, student, duration, book_level)
             
             if adjusted_duration > 0 and (item.total_units or 0) > 0:
                 total_val = adjusted_duration
@@ -86,9 +87,10 @@ def get_progress_chart(
                     duration = master_book.duration
                     if not book_level: book_level = master_book.level
             
-            duration = float(duration or 0)
+            duration = float(duration or 0.0)
             
-            adjusted_duration = get_adjusted_duration(duration, book_level, student_dev)
+            # 🌟 修正2: db ではなく session に変更して正しく渡す
+            adjusted_duration = get_adjusted_duration(session, student, duration, book_level)
             
             if adjusted_duration > 0 and (item.total_units or 0) > 0:
                 total_val = adjusted_duration

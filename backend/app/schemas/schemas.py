@@ -463,3 +463,64 @@ class MockExamCreate(BaseModel):
     subject_rika_kiso1_mark: Optional[Union[int,str]] = None
     subject_rika_kiso2_mark: Optional[Union[int,str]] = None
     subject_info_mark: Optional[Union[int,str]] = None
+
+# --- 科目 (Subject) ---
+class SubjectCreate(BaseModel):
+    name: str
+
+class SubjectResponse(BaseModel):
+    id: int
+    tenant_id: int
+    name: str
+
+    class Config:
+        from_attributes = True  # SQLAlchemyのモデルをJSONに変換するために必要
+
+# --- ルートレベル (RouteLevel) ---
+class RouteLevelCreate(BaseModel):
+    level_name: str
+    sequence_order: int
+    graph_line_type: Optional[str] = "standard"
+    show_on_graph: Optional[bool] = True
+    target_deviation: Optional[float] = 50.0
+
+class RouteLevelResponse(RouteLevelCreate):
+    id: int
+    tenant_id: int
+
+    class Config:
+        from_attributes = True
+
+class RouteLevelUpdate(BaseModel):
+    level_name: str
+    sequence_order: int
+    graph_line_type: str
+    show_on_graph: bool
+    target_deviation: Optional[float] = 50.0
+
+    class Config:
+        from_attributes = True
+
+# --- テナント設定 (TenantSetting) ---
+class TenantSettingUpdate(BaseModel):
+    duration_slope_formula: str
+
+class TenantSettingResponse(BaseModel):
+    id: int
+    tenant_id: int
+    duration_slope_formula: str
+
+    class Config:
+        from_attributes = True
+
+# ==========================================
+# 🟢 所要時間計算 (Calculation)
+# ==========================================
+class DurationCalculateRequest(BaseModel):
+    x: float  # 偏差値
+    y: float  # ルートレベル（順番などの数値）
+    t: float  # 元所要時間
+
+class DurationCalculateResponse(BaseModel):
+    duration: float  # 計算された所要時間
+    formula_used: str  # 今回計算に使われた数式（確認用）

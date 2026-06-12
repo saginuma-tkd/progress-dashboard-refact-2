@@ -446,6 +446,7 @@ class RouteLevel(Base):
     sequence_order: Mapped[int] = mapped_column(Integer, nullable=False)
     graph_line_type: Mapped[str] = mapped_column(String, default="standard")
     show_on_graph: Mapped[bool] = mapped_column(Boolean, default=True) # グラフへの表示/非表示フラグ
+    target_deviation = Column(Float, nullable=True, default=50.0)
 
 class Subject(Base):
     __tablename__ = "subjects"

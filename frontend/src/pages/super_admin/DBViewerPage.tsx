@@ -3,7 +3,6 @@ import { Database, RefreshCw, HardDrive, Search, AlertCircle, Pencil, Save, X } 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
-import BackupManagement from '../../components/admin/BackupManagement';
 import api from '../../lib/api';
 
 export default function DbViewerPage() {
@@ -15,7 +14,6 @@ export default function DbViewerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 🌟 編集モード用の状態管理
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Record<string, any>>({});
 
@@ -36,7 +34,7 @@ export default function DbViewerPage() {
     if (!targetTable) return;
     setIsLoading(true);
     setError("");
-    setEditingRowId(null); // テーブル切り替え時に編集モードを解除
+    setEditingRowId(null);
     try {
       const res = await api.get(`/system_admin/db/tables/${targetTable}`);
       setColumns(res.data.columns);
@@ -51,25 +49,21 @@ export default function DbViewerPage() {
     }
   };
 
-  // 🌟 編集を開始する
   const startEditing = (row: any) => {
     if (row.id === undefined) {
       alert("このテーブルには 'id' カラムがないため、ブラウザからの直接編集はできません。");
       return;
     }
     setEditingRowId(row.id);
-    setEditValues({ ...row }); // 現在の行のデータをフォームの初期値にコピー
+    setEditValues({ ...row });
   };
 
-  // 🌟 編集を保存する
   const handleSaveEdit = async () => {
     if (editingRowId === null) return;
 
-    // 更新するデータの抽出 (idは除外)
     const updates: Record<string, any> = {};
     columns.forEach(col => {
       if (col !== 'id') {
-        // 空文字をnullに変換する等の微調整（DBの仕様に合わせて適宜変更）
         let val = editValues[col];
         if (val === "null" || val === "") val = null;
         updates[col] = val;
@@ -82,7 +76,6 @@ export default function DbViewerPage() {
         row_id: editingRowId,
         updates: updates
       });
-      // 成功したら編集モードを抜けてデータを再取得
       setEditingRowId(null);
       handleSearch(tableName);
     } catch (e: any) {
@@ -114,7 +107,7 @@ export default function DbViewerPage() {
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
             <input
               type="text"
-              placeholder="テーブル名（例: users, students...）"
+              placeholder="テーブル名（例: users, route_levels...）"
               value={tableName}
               onChange={(e) => setTableName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -160,7 +153,6 @@ export default function DbViewerPage() {
             <Table>
               <TableHeader className="sticky top-0 bg-gray-50 z-10 ring-1 ring-gray-200">
                 <TableRow>
-                  {/* 🌟 一番左に「操作」のヘッダーを追加 */}
                   <TableHead className="w-16 bg-gray-50 z-20 sticky left-0 shadow-[1px_0_0_#e5e7eb]">操作</TableHead>
                   {columns.map(col => (
                     <TableHead key={col} className="whitespace-nowrap text-xs font-bold text-gray-700">
@@ -199,22 +191,46 @@ export default function DbViewerPage() {
                           )}
                         </TableCell>
 
-                        {/* 🌟 データセル */}
-                        {columns.map(col => (
-                          <TableCell key={col} className="whitespace-nowrap text-xs text-gray-600 min-w-[120px] max-w-[300px]">
-                            {isEditing && col !== 'id' ? (
-                              <Input
-                                className="h-7 text-xs px-2"
-                                value={editValues[col] === null ? "" : editValues[col]}
-                                onChange={(e: any) => setEditValues({ ...editValues, [col]: e.target.value })}
-                              />
-                            ) : (
-                              <div className="truncate">
-                                {row[col] === null ? <span className="text-gray-300 italic">null</span> : String(row[col])}
-                              </div>
-                            )}
-                          </TableCell>
-                        ))}
+                        {/* 🌟 データセル（型推論エンジン搭載） */}
+                        {columns.map(col => {
+                          const originalValue = row[col];
+                          const isBoolean = typeof originalValue === 'boolean';
+
+                          return (
+                            <TableCell key={col} className="whitespace-nowrap text-xs text-gray-600 min-w-[120px] max-w-[300px]">
+                              {isEditing && col !== 'id' ? (
+                                isBoolean ? (
+                                  <select
+                                    className="h-7 text-xs px-2 border rounded-md bg-white w-full"
+                                    value={editValues[col] ? "true" : "false"}
+                                    onChange={(e) => setEditValues({ ...editValues, [col]: e.target.value === "true" })}
+                                  >
+                                    <option value="true">true</option>
+                                    <option value="false">false</option>
+                                  </select>
+                                ) : (
+                                  <Input
+                                    className="h-7 text-xs px-2"
+                                    value={editValues[col] === null ? "" : editValues[col]}
+                                    onChange={(e: any) => setEditValues({ ...editValues, [col]: e.target.value })}
+                                  />
+                                )
+                              ) : (
+                                <div className="truncate">
+                                  {originalValue === null ? (
+                                    <span className="text-gray-300 italic">null</span>
+                                  ) : isBoolean ? (
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${originalValue ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                      {String(originalValue)}
+                                    </span>
+                                  ) : (
+                                    String(originalValue)
+                                  )}
+                                </div>
+                              )}
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     );
                   })
