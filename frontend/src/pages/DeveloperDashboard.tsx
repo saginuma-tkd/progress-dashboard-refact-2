@@ -4,7 +4,7 @@ import {
   ShieldAlert, Database, KeyRound, Wrench,
   Users, HardDrive, AlertTriangle, CheckCircle2,
   UserCog, FileSpreadsheet, BookOpen, GraduationCap,
-  Landmark
+  Landmark, ListOrdered, Clock
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -18,6 +18,9 @@ import GradeUpdateManagement from '../components/developer/GradeUpdateManagement
 import RoleManagement from '../components/developer/RoleManagement';
 import CsvImportManagement from '../components/developer/CsvImportManagement';
 import SchoolManagement from '../components/developer/SchoolManagement';
+import SubjectManagement from '../components/developer/SubjectManagement';
+import RouteLevelManagement from '../components/developer/RouteLevelManagement';
+import FormulaManagement from '../components/developer/FormulaManagement';
 
 interface SystemInfo {
   db_size_mb: number;
@@ -99,6 +102,27 @@ export default function DeveloperDashboard() {
       colorClass: "bg-emerald-100 text-emerald-600",
       component: <CsvImportManagement />
     },
+    {
+      title: "科目マスタのカスタマイズ",
+      icon: BookOpen,
+      description: "科目マスタのカスタマイズ",
+      colorClass: "bg-yellow-100 text-yellow-600",
+      component: <SubjectManagement />
+    },
+    {
+      title: "ルートレベルの管理",
+      icon: ListOrdered,
+      description: "ルートレベルの管理",
+      colorClass: "bg-cyan-100 text-cyan-600",
+      component: <RouteLevelManagement />
+    },
+    {
+      title: "所要時間計算ロジックの更新",
+      icon: Clock,
+      description: "所要時間計算ロジックの更新",
+      colorClass: "bg-orange-100 text-orange-600",
+      component: <FormulaManagement />
+    }
   ];
 
   return (

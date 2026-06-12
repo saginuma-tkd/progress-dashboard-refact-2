@@ -11,37 +11,51 @@ import { toast } from 'sonner';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { Badge } from '../ui/badge';
 
+// 🌟 バックエンドから取得する型の定義を追加
+interface RouteLevel {
+    id: number;
+    level_name: string;
+    sequence_order: number;
+}
+interface TenantSubject {
+    id: number;
+    name: string;
+}
+
 export default function TextbookManagement() {
     const confirm = useConfirm();
     const [textbooks, setTextbooks] = useState<any[]>([]);
 
-    // 🌟 権限管理用のステート（文字列全体を保持）
-    const [userRoleStr, setUserRoleStr] = useState<string>("");
+    // 🌟 テナントの公式設定を保持するState
+    const [tenantSubjects, setTenantSubjects] = useState<TenantSubject[]>([]);
+    const [tenantLevels, setTenantLevels] = useState<RouteLevel[]>([]);
 
-    // 編集モード管理
+    const [userRoleStr, setUserRoleStr] = useState<string>("");
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
 
-    // フォームデータ
+    // フォームデータ (初期値は後で動的にセットします)
     const [formData, setFormData] = useState({
         book_name: '',
-        subject: '英語',
-        level: '基礎徹底',
+        subject: '',
+        level: '',
         duration: 0
     });
 
-    // フィルター
     const [filterSubject, setFilterSubject] = useState("ALL");
     const [filterLevel, setFilterLevel] = useState("ALL");
     const [filterName, setFilterName] = useState("");
 
-    const fetchBooks = async () => {
+    const [isCustomSubject, setIsCustomSubject] = useState(false);
+    const [isCustomLevel, setIsCustomLevel] = useState(false);
+
+    // 🌟 1. データ取得とソートのロジックを一新！
+    const fetchData = async () => {
         try {
-            // 🌟 最強の権限チェックロジックを適用
+            // 権限チェックロジック（そのまま）
             let rawUserData = "";
             const savedUser = localStorage.getItem('user');
             if (savedUser) rawUserData += savedUser;
-
             const token = localStorage.getItem('access_token') || localStorage.getItem('token');
             if (token && token.includes('.')) {
                 try {
@@ -51,33 +65,45 @@ export default function TextbookManagement() {
             }
             setUserRoleStr(rawUserData.toLowerCase());
 
-            const res = await api.get('/common/textbooks');
+            // 🌟 APIから設定と参考書を同時に取得
+            const [subjRes, levelRes, booksRes] = await Promise.all([
+                api.get('/tenant-config/subjects'),
+                api.get('/tenant-config/route-levels'),
+                api.get('/common/textbooks')
+            ]);
 
-            // 科目のカスタム順序
-            const subjectOrder: Record<string, number> = {
-                "英語": 1, "数学(文系)": 2, "数学(理系)": 3, "現代文": 4,
-                "古文": 5, "漢文": 6, "物理": 7, "化学": 8, "生物": 9,
-                "日本史": 10, "世界史": 11, "政治経済": 12
-            };
+            const fetchedSubjects: TenantSubject[] = subjRes.data;
+            const fetchedLevels: RouteLevel[] = levelRes.data;
 
-            // レベルのカスタム順序
-            const levelOrder: Record<string, number> = {
-                "基礎徹底": 1, "日大": 2, "MARCH": 3, "早慶": 4
-            };
+            setTenantSubjects(fetchedSubjects);
+            setTenantLevels(fetchedLevels.sort((a, b) => a.sequence_order - b.sequence_order));
 
-            // 取得したデータをソートする
-            const sortedData = [...res.data].sort((a, b) => {
-                // 1. 科目で比較
-                const subjA = subjectOrder[a.subject] || 99;
-                const subjB = subjectOrder[b.subject] || 99;
+            // 🌟 フォームの初期値を、設定の1番目のものに動的に設定する
+            if (!isEditing && formData.subject === '') {
+                setFormData(prev => ({
+                    ...prev,
+                    subject: fetchedSubjects.length > 0 ? fetchedSubjects[0].name : '',
+                    level: fetchedLevels.length > 0 ? fetchedLevels[0].level_name : ''
+                }));
+            }
+
+            // 🌟 APIから取得した設定を使って、ソート用の順序マップを動的に作成！
+            const dynamicSubjectOrder: Record<string, number> = {};
+            fetchedSubjects.forEach((s, index) => { dynamicSubjectOrder[s.name] = index + 1; });
+
+            const dynamicLevelOrder: Record<string, number> = {};
+            fetchedLevels.forEach(l => { dynamicLevelOrder[l.level_name] = l.sequence_order; });
+
+            // 取得したデータを動的マップでソート
+            const sortedData = [...booksRes.data].sort((a, b) => {
+                const subjA = dynamicSubjectOrder[a.subject] || 999;
+                const subjB = dynamicSubjectOrder[b.subject] || 999;
                 if (subjA !== subjB) return subjA - subjB;
 
-                // 2. レベルで比較
-                const rankA = levelOrder[a.level] || 99;
-                const rankB = levelOrder[b.level] || 99;
+                const rankA = dynamicLevelOrder[a.level] || 999;
+                const rankB = dynamicLevelOrder[b.level] || 999;
                 if (rankA !== rankB) return rankA - rankB;
 
-                // 3. 50音順 (参考書名)
                 return a.book_name.localeCompare(b.book_name, 'ja');
             });
 
@@ -87,26 +113,14 @@ export default function TextbookManagement() {
             toast.error("データ取得失敗");
         }
     };
-    useEffect(() => { fetchBooks(); }, []);
 
-    // ユニークな科目リスト生成
-    const uniqueSubjects = Array.from(new Set(textbooks.map(t => t.subject).filter(Boolean)));
-    if (uniqueSubjects.length === 0) uniqueSubjects.push("英語", "数学", "国語");
+    useEffect(() => { fetchData(); }, []);
 
-    const uniqueLevels = Array.from(new Set(textbooks.map(t => t.level).filter(Boolean)));
-    if (uniqueLevels.length === 0) uniqueLevels.push("基礎徹底", "日大", "MARCH", "早慶");
-
-    const [isCustomSubject, setIsCustomSubject] = useState(false);
-    const [isCustomLevel, setIsCustomLevel] = useState(false);
-
-    // 🌟 権限チェック：includesを使って柔軟に判定！
     const canEditOrDelete = (book: any) => {
         if (userRoleStr.includes("developer") || userRoleStr.includes("admin") || userRoleStr.includes("super")) return true;
-        // 校舎長なら、自分の校舎専用のもの（school_idが入っているもの）だけ編集可能
         return book.school_id !== null && book.school_id !== undefined;
     };
 
-    // 編集開始
     const startEdit = (book: any) => {
         setIsEditing(true);
         setEditId(book.id);
@@ -118,14 +132,18 @@ export default function TextbookManagement() {
         });
     };
 
-    // 編集キャンセル
     const cancelEdit = () => {
         setIsEditing(false);
         setEditId(null);
-        setFormData({ book_name: '', subject: '英語', level: '基礎徹底', duration: 0 });
+        // 🌟 キャンセル時も、テナント設定の1番目の項目に戻す
+        setFormData({
+            book_name: '',
+            subject: tenantSubjects.length > 0 ? tenantSubjects[0].name : '',
+            level: tenantLevels.length > 0 ? tenantLevels[0].level_name : '',
+            duration: 0
+        });
     };
 
-    // 保存 (新規作成 or 更新)
     const handleSave = async () => {
         if (!formData.book_name) return toast.error("参考書名は必須です");
         if (!formData.subject) return toast.error("科目を選択してください");
@@ -138,7 +156,7 @@ export default function TextbookManagement() {
                 await api.post('/admin/textbooks', formData);
                 toast.success("登録しました");
             }
-            fetchBooks();
+            fetchData();
             cancelEdit();
         } catch (e) { toast.error("保存失敗"); }
     };
@@ -150,19 +168,17 @@ export default function TextbookManagement() {
             confirmText: "削除する",
             isDestructive: true
         });
-
         if (!isOk) return;
 
         try {
             await api.delete(`/admin/textbooks/${id}`);
             toast.success("削除しました");
-            fetchBooks();
+            fetchData();
         } catch (e) {
             toast.error("削除失敗");
         }
     };
 
-    // フィルタリング
     const filteredTextbooks = textbooks.filter(t => {
         const matchSubject = filterSubject === "ALL" || t.subject === filterSubject;
         const matchLevel = filterLevel === "ALL" || t.level === filterLevel;
@@ -172,7 +188,6 @@ export default function TextbookManagement() {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-start">
-
             {/* 左列: フォーム (4/12) */}
             <Card className="lg:col-span-4 bg-gray-50/50">
                 <CardHeader>
@@ -182,7 +197,6 @@ export default function TextbookManagement() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {/* 🌟 登録範囲のガイダンスも修正 */}
                     <div className="bg-blue-50 text-blue-800 p-3 rounded-md text-xs flex items-start gap-2 border border-blue-100">
                         <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-500" />
                         <div>
@@ -217,12 +231,13 @@ export default function TextbookManagement() {
                             </Button>
                         </div>
 
-                        {!isCustomSubject && uniqueSubjects.length > 0 ? (
+                        {/* 🌟 2. プルダウンの選択肢をテナント設定から生成 */}
+                        {!isCustomSubject && tenantSubjects.length > 0 ? (
                             <Select value={formData.subject} onValueChange={v => setFormData({ ...formData, subject: v })}>
                                 <SelectTrigger><SelectValue placeholder="選択してください" /></SelectTrigger>
                                 <SelectContent className="max-h-60">
-                                    {uniqueSubjects.map((subj: any) => (
-                                        <SelectItem key={subj} value={subj}>{subj}</SelectItem>
+                                    {tenantSubjects.map(subj => (
+                                        <SelectItem key={subj.id} value={subj.name}>{subj.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -250,13 +265,13 @@ export default function TextbookManagement() {
                             </Button>
                         </div>
 
-                        {!isCustomLevel && uniqueLevels.length > 0 ? (
+                        {/* 🌟 プルダウンの選択肢をテナント設定から生成 */}
+                        {!isCustomLevel && tenantLevels.length > 0 ? (
                             <Select value={formData.level} onValueChange={v => setFormData({ ...formData, level: v })}>
                                 <SelectTrigger><SelectValue placeholder="選択してください" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">全レベル</SelectItem>
-                                    {uniqueLevels.map((lvl: any) => (
-                                        <SelectItem key={lvl} value={lvl}>{lvl}</SelectItem>
+                                <SelectContent className="max-h-60">
+                                    {tenantLevels.map(lvl => (
+                                        <SelectItem key={lvl.id} value={lvl.level_name}>{lvl.level_name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -273,7 +288,7 @@ export default function TextbookManagement() {
                         <Label>所要時間 (h)</Label>
                         <Input
                             type="number"
-                            value={formData.duration}
+                            value={formData.duration || ""}
                             onChange={e => setFormData({ ...formData, duration: Number(e.target.value) })}
                             min={0}
                         />
@@ -299,21 +314,22 @@ export default function TextbookManagement() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mr-2">
                         <Filter className="w-4 h-4" /> 絞り込み:
                     </div>
+                    {/* 🌟 フィルタのプルダウンもテナント設定から生成 */}
                     <Select value={filterSubject} onValueChange={setFilterSubject}>
                         <SelectTrigger className="w-[110px] h-9 text-xs"><SelectValue placeholder="全科目" /></SelectTrigger>
                         <SelectContent className="max-h-60">
                             <SelectItem value="ALL">全科目</SelectItem>
-                            {uniqueSubjects.map((subj: any) => (
-                                <SelectItem key={subj} value={subj}>{subj}</SelectItem>
+                            {tenantSubjects.map(subj => (
+                                <SelectItem key={subj.id} value={subj.name}>{subj.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                     <Select value={filterLevel} onValueChange={setFilterLevel}>
                         <SelectTrigger className="w-[110px] h-9 text-xs"><SelectValue placeholder="全レベル" /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-60">
                             <SelectItem value="ALL">全レベル</SelectItem>
-                            {uniqueLevels.map((lvl: any) => (
-                                <SelectItem key={lvl} value={lvl}>{lvl}</SelectItem>
+                            {tenantLevels.map(lvl => (
+                                <SelectItem key={lvl.id} value={lvl.level_name}>{lvl.level_name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -346,7 +362,6 @@ export default function TextbookManagement() {
                                     <TableRow key={t.id} className="hover:bg-gray-50/50">
                                         <TableCell className="font-medium py-2">{t.book_name}</TableCell>
 
-                                        {/* バッジ表示 */}
                                         <TableCell className="py-2">
                                             {t.school_id === null || t.school_id === undefined ? (
                                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-normal shadow-none whitespace-nowrap">
@@ -367,7 +382,6 @@ export default function TextbookManagement() {
                                         <TableCell className="py-2 text-xs text-muted-foreground">{t.level}</TableCell>
                                         <TableCell className="text-right py-2 text-xs">{t.duration}h</TableCell>
                                         <TableCell className="py-2 text-right">
-                                            {/* 🌟 権限があるものだけボタンを表示！ */}
                                             {canEditOrDelete(t) ? (
                                                 <div className="flex items-center justify-end gap-1">
                                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500" onClick={() => startEdit(t)}>

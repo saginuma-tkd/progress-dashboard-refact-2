@@ -421,3 +421,40 @@ class AbsenceReport(Base):
         if self.instructor:
             return self.instructor.username
         return "未指定"
+
+# --- 新規追加：テナントカスタマイズ設定用モデル ---
+
+class TenantSetting(Base):
+    __tablename__ = "tenant_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    # 1テナントにつき1つの設定にするため、unique=True を付与
+    tenant_id: Mapped[int] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), unique=True, nullable=False)
+    
+    # x(偏差値)とy(ルートレベル)を使った計算式
+    duration_slope_formula: Mapped[str] = mapped_column(Text, default="1.0 * x + 0.0 * y")
+
+    tenant = relationship("Tenant", backref="setting")
+
+class RouteLevel(Base):
+    __tablename__ = "route_levels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    
+    level_name: Mapped[str] = mapped_column(String, nullable=False)
+    sequence_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    graph_line_type: Mapped[str] = mapped_column(String, default="standard")
+    show_on_graph: Mapped[bool] = mapped_column(Boolean, default=True) # グラフへの表示/非表示フラグ
+    target_deviation = Column(Float, nullable=True, default=50.0)
+
+class Subject(Base):
+    __tablename__ = "subjects"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    
+    name: Mapped[str] = mapped_column(String, nullable=False)
+
+    # 同一テナント内で同じ科目名が複数作られないようにする制約
+    __table_args__ = (UniqueConstraint('tenant_id', 'name', name='_tenant_subject_name_uc'),)

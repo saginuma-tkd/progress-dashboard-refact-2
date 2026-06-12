@@ -10,11 +10,36 @@ interface ChartProps {
   refreshTrigger?: number;
 }
 
+interface RouteLevel {
+  id: number;
+  level_name: string;
+  sequence_order: number;
+  graph_line_type: string;
+  show_on_graph: boolean;
+}
+
 export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartProps) {
   const [subjects, setSubjects] = useState<string[]>(["全体"]);
   const [selectedSubject, setSelectedSubject] = useState("全体");
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [routeLevels, setRouteLevels] = useState<RouteLevel[]>([]);
+
+  // 科目一覧取得
+  // 🌟 1. 初期化時にテナントのルートレベル設定を取得
+  useEffect(() => {
+    const fetchRouteLevels = async () => {
+      try {
+        const res = await api.get('/tenant-config/route-levels');
+        // sequence_order（順番）でソートしてStateに保存
+        const sortedLevels = res.data.sort((a: RouteLevel, b: RouteLevel) => a.sequence_order - b.sequence_order);
+        setRouteLevels(sortedLevels);
+      } catch (error) {
+        console.error("Failed to fetch route levels", error);
+      }
+    };
+    fetchRouteLevels();
+  }, []);
 
   // 科目一覧取得
   useEffect(() => {
@@ -52,10 +77,13 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
 
   const safeChartData = chartData || [];
 
-  // 🌟 1. ルートの順番を定義（元の正確な名前に戻す）
-  const levelOrder = ["基礎", "基礎徹底", "日大", "MARCH", "早慶", "地方国公立", "難関国公立", "東大", "京大"];
+  // 🌟 2. DBから取得した設定を使って並び順（levelOrder配列）を作る
+  // （もし取得前や空なら、最低限動くようにフォールバック配列を用意）
+  const levelOrder = routeLevels.length > 0
+    ? routeLevels.map(rl => rl.level_name)
+    : ["基礎", "日大", "MARCH"]; // フォールバック
 
-  // 🌟 2. データをルート順にソートする
+  // 🌟 3. データをルート順にソートする
   const sortedData = [...safeChartData].sort((a, b) => {
     const lvlA = a.level || "その他";
     const lvlB = b.level || "その他";
@@ -79,27 +107,34 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
   if (selectedSubject !== "全体") {
     const levelTotals: Record<string, number> = {};
 
-    // 🌟 3. 集計時に名前を統一する（表記揺れによる分離を防ぐ）
+    // 集計時に名前を統一する
     sortedData.forEach((item: any) => {
       const lvl = item.level || "その他";
-      // levelOrderの中に含まれるキーワードがあればそれに統一
       const matchedLevel = levelOrder.find(keyword => lvl.includes(keyword)) || "その他";
       levelTotals[matchedLevel] = (levelTotals[matchedLevel] || 0) + (item.total || 0);
     });
 
     let currentX = 0;
-    levelOrder.forEach((lvl) => {
+
+    // DBで設定したレベルの順番に沿ってループ
+    routeLevels.forEach((rl) => {
+      const lvl = rl.level_name;
+
       if (levelTotals[lvl] && levelTotals[lvl] > 0) {
-        // 基礎などの時間もしっかり足し算する（日大の位置をズレさせないため）
         currentX += levelTotals[lvl];
 
-        // 🌟 4. 線と文字とホバーを描画するのは指定の3レベルのみ！
-        if (["日大", "MARCH", "早慶"].includes(lvl)) {
+        // 🌟 4. 線を引くかどうかはDBの show_on_graph フラグで判定！
+        if (rl.show_on_graph) {
+
+          // 線の種類（色や太さ）を graph_line_type で出し分けることも可能
+          const isAdvance = rl.graph_line_type === 'advance';
+          const lineColor = isAdvance ? '#8b5cf6' : '#ef4444'; // advanceなら紫、standardなら赤
+
           shapes.push({
             type: 'line',
             x0: currentX, x1: currentX,
             y0: -0.4, y1: 1.4,
-            line: { color: '#ef4444', width: 2, dash: 'dot' }
+            line: { color: lineColor, width: 2, dash: 'dot' }
           });
 
           annotations.push({
@@ -107,7 +142,7 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
             y: 1.45,
             text: lvl,
             showarrow: false,
-            font: { color: '#ef4444', size: 11, weight: 'bold' }
+            font: { color: lineColor, size: 11, weight: 'bold' }
           });
 
           // ホバー用の透明なマーカー
@@ -119,7 +154,7 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
             marker: { size: 30, color: 'rgba(0,0,0,0)' },
             hoverinfo: 'text',
             hovertext: `🎯 ${lvl}まで: 合計 ${currentX.toFixed(1)} 時間`,
-            hoverlabel: { bgcolor: '#ef4444', font: { color: 'white', size: 12 } },
+            hoverlabel: { bgcolor: lineColor, font: { color: 'white', size: 12 } },
             showlegend: false
           });
         }
