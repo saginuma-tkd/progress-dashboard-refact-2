@@ -103,23 +103,22 @@ export default function DeveloperDashboard() {
       component: <CsvImportManagement />
     },
     {
-      title: "科目マスタのカスタマイズ",
+      title: "科目マスタの管理",
       icon: BookOpen,
-      description: "科目マスタのカスタマイズ",
+      description: "科目・プリセット等の科目の管理",
       colorClass: "bg-yellow-100 text-yellow-600",
       component: <SubjectManagement />
     },
     {
       title: "ルートレベルの管理",
       icon: ListOrdered,
-      description: "ルートレベルの管理",
+      description: "参考書のルートレベルの管理",
       colorClass: "bg-cyan-100 text-cyan-600",
       component: <RouteLevelManagement />
     },
     {
-      title: "所要時間計算ロジックの更新",
+      title: "所要時間計算ロジック更新",
       icon: Clock,
-      description: "所要時間計算ロジックの更新",
       colorClass: "bg-orange-100 text-orange-600",
       component: <FormulaManagement />
     }

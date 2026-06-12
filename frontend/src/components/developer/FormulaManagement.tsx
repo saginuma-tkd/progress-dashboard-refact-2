@@ -8,8 +8,8 @@ import { Button } from '../ui/button';
 const FormulaManagement: React.FC = () => {
     const [formula, setFormula] = useState("");
     const [testX, setTestX] = useState("50");
-    const [testY, setTestY] = useState("3");
-    const [testT, setTestT] = useState("2.0");
+    const [testY, setTestY] = useState("60");
+    const [testT, setTestT] = useState("20");
     const [testResult, setTestResult] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -50,7 +50,7 @@ const FormulaManagement: React.FC = () => {
                     <Input
                         value={formula}
                         onChange={e => setFormula(e.target.value)}
-                        placeholder="例: 1.2 * x + 0.5 * y"
+                        placeholder="例:(1+0.025*(x-y))*t"
                         className="bg-white font-mono"
                     />
                     <Button onClick={handleSaveFormula} className="font-bold">保存</Button>
@@ -58,11 +58,11 @@ const FormulaManagement: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-4 text-sm bg-indigo-50 p-3 rounded-md border border-indigo-100">
                     <span className="font-bold text-indigo-700 flex items-center gap-1"><Info className="w-4 h-4" /> プレビュー計算:</span>
                     <div className="flex items-center gap-2">
-                        <span>偏差値(x):</span>
+                        <span>生徒偏差値(x):</span>
                         <Input type="number" value={testX} onChange={e => setTestX(e.target.value)} className="w-20 h-8 bg-white" />
                     </div>
                     <div className="flex items-center gap-2">
-                        <span>レベル(y):</span>
+                        <span>ルート基準偏差値(y):</span>
                         <Input type="number" value={testY} onChange={e => setTestY(e.target.value)} className="w-20 h-8 bg-white" />
                     </div>
                     <div className="flex items-center gap-2">
