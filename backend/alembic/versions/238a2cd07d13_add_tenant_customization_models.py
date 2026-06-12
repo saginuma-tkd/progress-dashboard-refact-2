@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.engine.reflection import Inspector # 🌟 データベースの中身を覗き見るツール
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -22,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # 現在のデータベース接続を取得し、存在するテーブル一覧を取得
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = inspect(conn)
     existing_tables = inspector.get_table_names()
 
     # 🌟 無い場合のみ tenants を作成
