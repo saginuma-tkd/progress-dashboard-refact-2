@@ -455,6 +455,7 @@ class Subject(Base):
     tenant_id: Mapped[int] = mapped_column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     
     name: Mapped[str] = mapped_column(String, nullable=False)
+    sequence_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # 同一テナント内で同じ科目名が複数作られないようにする制約
     __table_args__ = (UniqueConstraint('tenant_id', 'name', name='_tenant_subject_name_uc'),)

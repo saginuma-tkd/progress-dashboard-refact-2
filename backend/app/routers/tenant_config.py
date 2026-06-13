@@ -40,6 +40,13 @@ def delete_subject(subject_id: int, db: Session = Depends(get_db), current_user:
         raise HTTPException(status_code=404, detail="指定された科目は見つかりません")
     return None
 
+# 🌟 科目の並び替えエンドポイント（# --- 科目 --- のブロックの最後に追加）
+@router.put("/subjects/reorder")
+def reorder_subjects(req: schemas.BulkReorderRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    tenant_id = get_valid_tenant_id(current_user)
+    crud_tenant_config.reorder_subjects(db, tenant_id, req.items)
+    return {"message": "科目の並び順を更新しました"}
+
 # --- ルートレベル ---
 @router.get("/route-levels", response_model=List[schemas.RouteLevelResponse])
 def get_route_levels(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -50,6 +57,13 @@ def get_route_levels(db: Session = Depends(get_db), current_user: models.User = 
 def create_route_level(route_level: schemas.RouteLevelCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     tenant_id = get_valid_tenant_id(current_user)
     return crud_tenant_config.create_route_level(db=db, route_level=route_level, tenant_id=tenant_id)
+
+# 🌟 ルートレベルの並び替えエンドポイント（# --- ルートレベル --- のブロックの最後に追加）
+@router.put("/route-levels/reorder")
+def reorder_route_levels(req: schemas.BulkReorderRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    tenant_id = get_valid_tenant_id(current_user)
+    crud_tenant_config.reorder_route_levels(db, tenant_id, req.items)
+    return {"message": "ルートレベルの並び順を更新しました"}
 
 @router.delete("/route-levels/{level_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_route_level(level_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
