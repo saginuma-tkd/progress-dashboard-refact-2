@@ -1,50 +1,63 @@
-# backend/app/core/security.py
-
+"""
+Security Module
+パスワードのハッシュ化・検証、およびJWT（JSON Web Token）の生成を管理します。
+"""
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import jwt
-from app.core.config import settings
-from werkzeug.security import generate_password_hash, check_password_hash
-import os
-# bcrypt ハッシュ検証用モジュールを追加
-import bcrypt
 
-# SECRET_KEY = os.getenv("SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
-# ↑使わないのでいったんコメントアウト
+import bcrypt
+from jose import jwt
+from werkzeug.security import check_password_hash
+
+from app.core.config import settings
+
+# JWTエンコード用のアルゴリズム
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 def get_password_hash(password: str) -> str:
-    """パスワードをハッシュ化する"""
+    """
+    平文パスワードをbcryptでハッシュ化します。
+    """
     hashed_bytes = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     return hashed_bytes.decode('utf-8')
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """入力されたパスワードと、DBのハッシュ済みパスワードを比較する"""
+    """
+    入力されたパスワードとDBのハッシュ済みパスワードを比較・検証します。
+    後方互換性のため、Werkzeug標準のハッシュ方式にも対応しています。
+    """
     if not hashed_password:
         return False
 
-    # 1. bcrypt方式（$2b$ や $2a$ で始まる）の場合
-    if hashed_password.startswith("$2b$") or hashed_password.startswith("$2a$"):
+    # 1. 最新のbcrypt方式（$2b$ や $2a$ で始まる）の検証
+    if hashed_password.startswith(("$2b$", "$2a$")):
         try:
             return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
         except Exception:
-            pass # エラー時は下へ
+            pass  # エラー時はフォールバック処理へ
 
-    # 2. Werkzeug標準のハッシュ方式の場合
+    # 2. 過去のWerkzeug標準ハッシュ方式の検証（レガシー互換用）
     try:
         return check_password_hash(hashed_password, plain_password)
     except ValueError:
         return False
 
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """アクセストークンを作成する"""
+    """
+    認証用のJWTアクセストークンを生成します。
+    """
     to_encode = data.copy()
+    
+    # 有効期限の設定（指定がない場合は設定ファイルのデフォルト値を使用）
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         
     to_encode.update({"exp": expire})
+    
+    # トークンの署名
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
