@@ -97,3 +97,24 @@ def update_tenant_setting(db: Session, setting_update: schemas.TenantSettingUpda
     db.commit()
     db.refresh(setting)
     return setting
+
+# ==========================================
+# 🟢 ドラッグ＆ドロップ並び替え (Reorder)
+# ==========================================
+def reorder_route_levels(db: Session, tenant_id: int, items: list[schemas.ReorderItem]):
+    for item in items:
+        db.query(models.RouteLevel).filter(
+            models.RouteLevel.id == item.id,
+            models.RouteLevel.tenant_id == tenant_id
+        ).update({"sequence_order": item.sequence_order})
+    db.commit()
+    return True
+
+def reorder_subjects(db: Session, tenant_id: int, items: list[schemas.ReorderItem]):
+    for item in items:
+        db.query(models.Subject).filter(
+            models.Subject.id == item.id,
+            models.Subject.tenant_id == tenant_id
+        ).update({"sequence_order": item.sequence_order})
+    db.commit()
+    return True

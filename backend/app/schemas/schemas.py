@@ -524,3 +524,11 @@ class DurationCalculateRequest(BaseModel):
 class DurationCalculateResponse(BaseModel):
     duration: float  # 計算された所要時間
     formula_used: str  # 今回計算に使われた数式（確認用）
+
+# --- 並び替え (Reorder) 用 ---
+class ReorderItem(BaseModel):
+    id: int
+    sequence_order: int
+
+class BulkReorderRequest(BaseModel):
+    items: List[ReorderItem]
