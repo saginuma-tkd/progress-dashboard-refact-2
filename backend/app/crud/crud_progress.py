@@ -182,7 +182,7 @@ def get_adjusted_duration(db: Session, student: Any, base_duration: float, book_
         RouteLevel.level_name == book_level
     ).first()
     
-    y_val = float(level_setting.sequence_order) if level_setting else 0.0
+    y_val = float(level_setting.target_deviation) if level_setting and level_setting.target_deviation else 0.0
     x_val = float(student.deviation_value)  # type: ignore
     t_val = float(base_duration)
 
