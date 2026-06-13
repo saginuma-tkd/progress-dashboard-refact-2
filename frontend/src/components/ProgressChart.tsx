@@ -24,6 +24,16 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [routeLevels, setRouteLevels] = useState<RouteLevel[]>([]);
+  const LINE_COLOR_MAP: Record<string, string> = {
+    blue: '#3b82f6',    // Tailwindの blue-500
+    red: '#ef4444',     // Tailwindの red-500
+    green: '#22c55e',   // Tailwindの green-500
+    orange: '#f97316',  // Tailwindの orange-500
+    purple: '#a855f7',  // Tailwindの purple-500
+    // 以下は過去のデータの互換性用
+    standard: '#ef4444',
+    advance: '#8b5cf6',
+  };
 
   // 科目一覧取得
   // 🌟 1. 初期化時にテナントのルートレベル設定を取得
@@ -128,7 +138,7 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
 
           // 線の種類（色や太さ）を graph_line_type で出し分けることも可能
           const isAdvance = rl.graph_line_type === 'advance';
-          const lineColor = isAdvance ? '#8b5cf6' : '#ef4444'; // advanceなら紫、standardなら赤
+          const lineColor = LINE_COLOR_MAP[rl.graph_line_type] || '#94a3b8';
 
           shapes.push({
             type: 'line',

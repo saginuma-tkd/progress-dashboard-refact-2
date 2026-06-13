@@ -14,13 +14,23 @@ interface RouteLevel {
     sequence_order: number;
     graph_line_type: string;
     show_on_graph: boolean;
-    target_deviation: number | null | undefined; // 🌟 より安全な型定義に変更
+    target_deviation: number | null | undefined;
 }
+
+// 🌟 カラーパレットの定義（5色）
+const LINE_COLORS = [
+    { id: 'blue', class: 'bg-blue-500', hover: 'hover:bg-blue-600', label: 'ブルー' },
+    { id: 'red', class: 'bg-red-500', hover: 'hover:bg-red-600', label: 'レッド' },
+    { id: 'green', class: 'bg-green-500', hover: 'hover:bg-green-600', label: 'グリーン' },
+    { id: 'orange', class: 'bg-orange-500', hover: 'hover:bg-orange-600', label: 'オレンジ' },
+    { id: 'purple', class: 'bg-purple-500', hover: 'hover:bg-purple-600', label: 'パープル' },
+];
 
 const RouteLevelManagement: React.FC = () => {
     const confirm = useConfirm();
     const [levels, setLevels] = useState<RouteLevel[]>([]);
-    const [newLevel, setNewLevel] = useState({ name: '', order: 1, type: 'standard', show: true, deviation: 50.0 });
+    // 🌟 新規追加のデフォルトを 'blue' に変更
+    const [newLevel, setNewLevel] = useState({ name: '', order: 1, type: 'blue', show: true, deviation: 50.0 });
     const [loading, setLoading] = useState(true);
 
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -50,7 +60,7 @@ const RouteLevelManagement: React.FC = () => {
                 show_on_graph: newLevel.show,
                 target_deviation: Number(newLevel.deviation)
             });
-            setNewLevel({ name: '', order: levels.length + 2, type: 'standard', show: true, deviation: 50.0 });
+            setNewLevel({ name: '', order: levels.length + 2, type: 'blue', show: true, deviation: 50.0 });
             fetchLevels();
             toast.success("レベルを追加しました");
         } catch (err) { toast.error("追加に失敗しました"); }
@@ -65,9 +75,27 @@ const RouteLevelManagement: React.FC = () => {
         } catch (err) { toast.error("削除に失敗しました"); }
     };
 
+    // 🌟 編集ボタンを押さずに即時保存する「クイックアップデート機能」
+    const handleQuickUpdate = async (level: RouteLevel, field: keyof RouteLevel, value: any) => {
+        // UIを先に書き換えてサクサク感を出したい場合はここを工夫できますが、今回は確実性を重視してAPIを叩きます
+        try {
+            await api.put(`/tenant-config/route-levels/${level.id}`, {
+                level_name: level.level_name,
+                sequence_order: Number(level.sequence_order),
+                graph_line_type: field === 'graph_line_type' ? value : level.graph_line_type,
+                show_on_graph: field === 'show_on_graph' ? value : level.show_on_graph,
+                target_deviation: Number(level.target_deviation)
+            });
+            fetchLevels();
+            // 色や表示の切り替えは頻繁に行うため、通知は控えめ（短め）にします
+            toast.success("設定を更新しました", { duration: 1500 });
+        } catch (err) {
+            toast.error("更新に失敗しました");
+        }
+    };
+
     const startEdit = (level: RouteLevel) => {
         setEditingId(level.id);
-        // 🌟 編集開始時に、確実に数値をセットする（nullの場合は50.0にする）
         setEditForm({
             ...level,
             target_deviation: level.target_deviation != null ? level.target_deviation : 50.0
@@ -111,8 +139,8 @@ const RouteLevelManagement: React.FC = () => {
                             <th className="px-4 py-3 w-16">順序</th>
                             <th className="px-4 py-3 min-w-[120px]">レベル名</th>
                             <th className="px-4 py-3 w-24">偏差値</th>
-                            <th className="px-4 py-3 w-28">グラフ線種</th>
-                            <th className="px-4 py-3 text-center w-16">表示</th>
+                            <th className="px-4 py-3 w-36">グラフ線カラー</th>
+                            <th className="px-4 py-3 text-center w-20">表示</th>
                             <th className="px-4 py-3 text-right w-24">操作</th>
                         </tr>
                     </thead>
@@ -123,15 +151,25 @@ const RouteLevelManagement: React.FC = () => {
                                     <>
                                         <td className="px-2 py-2"><Input type="number" value={editForm.sequence_order ?? ""} onChange={e => setEditForm({ ...editForm, sequence_order: Number(e.target.value) })} className="h-8 text-center px-1" /></td>
                                         <td className="px-2 py-2"><Input value={editForm.level_name ?? ""} onChange={e => setEditForm({ ...editForm, level_name: e.target.value })} className="h-8" /></td>
-                                        {/* 🌟 警告対策：valueに null/undefined が渡らないようにする */}
                                         <td className="px-2 py-2"><Input type="number" step="0.1" value={editForm.target_deviation ?? 50.0} onChange={e => setEditForm({ ...editForm, target_deviation: Number(e.target.value) })} className="h-8 text-center px-1" /></td>
                                         <td className="px-2 py-2">
-                                            <select value={editForm.graph_line_type} onChange={e => setEditForm({ ...editForm, graph_line_type: e.target.value })} className="text-xs h-8 border rounded-md w-full bg-white px-2">
-                                                <option value="standard">Standard</option>
-                                                <option value="advance">Advance</option>
-                                            </select>
+                                            {/* 編集モード時のカラーパレット */}
+                                            <div className="flex gap-1.5 px-2">
+                                                {LINE_COLORS.map(c => (
+                                                    <button
+                                                        key={c.id}
+                                                        onClick={() => setEditForm({ ...editForm, graph_line_type: c.id })}
+                                                        title={c.label}
+                                                        className={`w-5 h-5 rounded-full border-2 transition-all ${editForm.graph_line_type === c.id ? 'border-gray-800 scale-110 shadow-sm' : 'border-transparent hover:scale-110'} ${c.class}`}
+                                                    />
+                                                ))}
+                                            </div>
                                         </td>
-                                        <td className="px-2 py-2 text-center"><input type="checkbox" checked={editForm.show_on_graph} onChange={e => setEditForm({ ...editForm, show_on_graph: e.target.checked })} className="rounded text-orange-500 w-4 h-4 cursor-pointer" /></td>
+                                        <td className="px-2 py-2 text-center">
+                                            <button onClick={() => setEditForm({ ...editForm, show_on_graph: !editForm.show_on_graph })} className="p-1.5 rounded hover:bg-gray-100 transition-colors">
+                                                {editForm.show_on_graph ? <Eye className="w-4 h-4 mx-auto text-emerald-500" /> : <EyeOff className="w-4 h-4 mx-auto text-gray-300" />}
+                                            </button>
+                                        </td>
                                         <td className="px-2 py-2 text-right">
                                             <div className="flex justify-end gap-1">
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={handleSaveEdit}><Save className="w-4 h-4" /></Button>
@@ -143,13 +181,31 @@ const RouteLevelManagement: React.FC = () => {
                                     <>
                                         <td className="px-4 py-3 font-mono text-gray-400">{l.sequence_order}</td>
                                         <td className="px-4 py-3 font-bold">{l.level_name}</td>
-                                        {/* 🌟 表示対策：null だけでなく 0 の場合も正しく表示されるように厳密に判定 */}
                                         <td className="px-4 py-3 font-medium text-blue-600">
                                             {l.target_deviation != null ? l.target_deviation : '-'}
                                         </td>
-                                        <td className="px-4 py-3"><span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase">{l.graph_line_type}</span></td>
+                                        <td className="px-4 py-3">
+                                            {/* 🌟 クイック操作カラーパレット（直接クリックで保存） */}
+                                            <div className="flex gap-1.5">
+                                                {LINE_COLORS.map(c => (
+                                                    <button
+                                                        key={c.id}
+                                                        onClick={() => handleQuickUpdate(l, 'graph_line_type', c.id)}
+                                                        title={`${c.label}に変更`}
+                                                        className={`w-5 h-5 rounded-full border-2 transition-all ${l.graph_line_type === c.id ? 'border-gray-800 scale-110 shadow-sm' : 'border-transparent hover:scale-110'} ${c.class}`}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </td>
                                         <td className="px-4 py-3 text-center">
-                                            {l.show_on_graph ? <Eye className="w-4 h-4 mx-auto text-emerald-500" /> : <EyeOff className="w-4 h-4 mx-auto text-gray-300" />}
+                                            {/* 🌟 クイック表示トグル（直接クリックで保存） */}
+                                            <button
+                                                onClick={() => handleQuickUpdate(l, 'show_on_graph', !l.show_on_graph)}
+                                                title={l.show_on_graph ? "クリックで非表示にする" : "クリックで表示する"}
+                                                className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                                            >
+                                                {l.show_on_graph ? <Eye className="w-4 h-4 mx-auto text-emerald-500" /> : <EyeOff className="w-4 h-4 mx-auto text-gray-300" />}
+                                            </button>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex justify-end gap-1">
@@ -166,28 +222,36 @@ const RouteLevelManagement: React.FC = () => {
                             </tr>
                         ))}
 
-                        <tr className="bg-orange-50/30">
+                        <tr className="bg-orange-50/30 border-t-2 border-orange-100">
                             <td className="px-2 py-2">
                                 <Input type="number" value={newLevel.order ?? ""} onChange={e => setNewLevel({ ...newLevel, order: Number(e.target.value) })} className="h-8 text-center px-1" />
                             </td>
                             <td className="px-2 py-2">
                                 <Input value={newLevel.name ?? ""} onChange={e => setNewLevel({ ...newLevel, name: e.target.value })} placeholder="新規レベル名" className="h-8" />
                             </td>
-                            {/* 🌟 警告対策：valueに null/undefined が渡らないようにする */}
                             <td className="px-2 py-2">
                                 <Input type="number" step="0.1" value={newLevel.deviation ?? 50.0} onChange={e => setNewLevel({ ...newLevel, deviation: Number(e.target.value) })} placeholder="偏差値" className="h-8 text-center px-1" />
                             </td>
                             <td className="px-2 py-2">
-                                <select value={newLevel.type} onChange={e => setNewLevel({ ...newLevel, type: e.target.value })} className="text-xs h-8 border rounded-md w-full bg-white px-2">
-                                    <option value="standard">Standard</option>
-                                    <option value="advance">Advance</option>
-                                </select>
+                                {/* 新規追加用のカラーパレット */}
+                                <div className="flex gap-1.5 px-2">
+                                    {LINE_COLORS.map(c => (
+                                        <button
+                                            key={c.id}
+                                            onClick={() => setNewLevel({ ...newLevel, type: c.id })}
+                                            title={c.label}
+                                            className={`w-5 h-5 rounded-full border-2 transition-all ${newLevel.type === c.id ? 'border-gray-800 scale-110 shadow-sm' : 'border-transparent hover:scale-110'} ${c.class}`}
+                                        />
+                                    ))}
+                                </div>
                             </td>
                             <td className="px-2 py-2 text-center">
-                                <input type="checkbox" checked={newLevel.show} onChange={e => setNewLevel({ ...newLevel, show: e.target.checked })} className="rounded text-orange-500 w-4 h-4 cursor-pointer" />
+                                <button onClick={() => setNewLevel({ ...newLevel, show: !newLevel.show })} className="p-1.5 rounded hover:bg-orange-100 transition-colors">
+                                    {newLevel.show ? <Eye className="w-4 h-4 mx-auto text-emerald-500" /> : <EyeOff className="w-4 h-4 mx-auto text-gray-300" />}
+                                </button>
                             </td>
-                            <td className="px-2 py-2">
-                                <Button size="sm" onClick={handleAddLevel} className="w-full h-8 font-bold bg-orange-500 hover:bg-orange-600">追加</Button>
+                            <td className="px-2 py-2 text-right">
+                                <Button size="sm" onClick={handleAddLevel} className="h-8 font-bold bg-orange-500 hover:bg-orange-600">追加</Button>
                             </td>
                         </tr>
                     </tbody>
