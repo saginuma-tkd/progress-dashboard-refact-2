@@ -20,6 +20,7 @@ interface RouteLevel {
 interface TenantSubject {
   id: number;
   name: string;
+  sequence_order: number;
 }
 
 export default function ProgressList({ studentId, onUpdate, readOnly = false }: { studentId: number, onUpdate?: () => void, readOnly?: boolean }) {
@@ -71,8 +72,7 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
         api.get<TenantSubject[]>('/tenant-config/subjects'),
         api.get<RouteLevel[]>('/tenant-config/route-levels')
       ]);
-      setTenantSubjects(subjRes.data);
-      // 順番でソートして保存
+      setTenantSubjects(subjRes.data.sort((a, b) => a.sequence_order - b.sequence_order));
       setTenantLevels(levelRes.data.sort((a, b) => a.sequence_order - b.sequence_order));
     } catch (e) { console.error("テナント設定の取得に失敗しました", e); }
   };
@@ -392,19 +392,43 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
     </div>
   );
 
-  // 🌟 修正: テナントのルートレベル設定（tenantLevels）を使って並び替える
-  // もしAPIから取得前ならフォールバックとして固定配列を使う
+  // 🌟 追加: テナントの科目設定を使って並び順の配列を作る
+  const subjectOrder = tenantSubjects.length > 0
+    ? tenantSubjects.map(subj => subj.name)
+    : ["英語", "数学", "国語", "理科", "社会"]; // フォールバック
+
   const levelOrder = tenantLevels.length > 0
     ? tenantLevels.map(lvl => lvl.level_name)
     : ["基礎", "日大", "MARCH", "早慶"];
 
+  // 🌟 修正: 科目順 -> レベル順 の優先度でダブルソートする
   const sortedList = [...filteredList].sort((a, b) => {
+    // 1. まず科目で比較
+    const subjA = a.subject || "その他";
+    const subjB = b.subject || "その他";
+    const sIndexA = subjectOrder.indexOf(subjA);
+    const sIndexB = subjectOrder.indexOf(subjB);
+    const sOrderA = sIndexA === -1 ? 99 : sIndexA;
+    const sOrderB = sIndexB === -1 ? 99 : sIndexB;
+
+    if (sOrderA !== sOrderB) {
+      return sOrderA - sOrderB; // 科目が違えば科目順で決定
+    }
+
+    // 2. 科目が同じならレベルで比較
     const lvlA = a.level || "その他";
     const lvlB = b.level || "その他";
     const aIndex = levelOrder.findIndex(keyword => lvlA.includes(keyword));
     const bIndex = levelOrder.findIndex(keyword => lvlB.includes(keyword));
     return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
   });
+
+  // 🌟 追加: 上部のタブ（科目ボタン）もマスタの順序に合わせて並び替える
+  const sortedSubjectsTabs = ["全体", ...subjects.filter(s => s !== "全体").sort((a, b) => {
+    const idxA = subjectOrder.indexOf(a);
+    const idxB = subjectOrder.indexOf(b);
+    return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+  })];
 
   return (
     <div className="h-[600px] flex flex-col space-y-4">
