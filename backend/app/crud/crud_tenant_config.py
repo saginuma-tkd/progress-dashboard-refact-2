@@ -47,7 +47,8 @@ def create_route_level(db: Session, route_level: schemas.RouteLevelCreate, tenan
         level_name=route_level.level_name,
         sequence_order=route_level.sequence_order,
         graph_line_type=route_level.graph_line_type,
-        show_on_graph=route_level.show_on_graph
+        show_on_graph=route_level.show_on_graph,
+        target_deviation=route_level.target_deviation
     )
     db.add(new_route_level)
     db.commit()
