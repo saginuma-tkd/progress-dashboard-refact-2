@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models import models
 from app.schemas.schemas import AdminUserCreate
-from app.routers.audit import log_action
+# ❌ ここにあった from app.routers.audit import log_action を削除しました！
 
 # ロガーの設定
 logger = logging.getLogger(__name__)
@@ -80,6 +80,9 @@ def create_user(db: Session, user_in: AdminUserCreate, current_user: models.User
 
     # 監査ログの記録
     try:
+        # 🌟 修正：循環インポートを防ぐため、ここでローカルインポートする！
+        from app.routers.audit import log_action
+        
         log_action(
             db=db, 
             user_id=cast(int, real_admin.id),
