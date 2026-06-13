@@ -472,6 +472,7 @@ class SubjectResponse(BaseModel):
     id: int
     tenant_id: int
     name: str
+    sequence_order: int
 
     class Config:
         from_attributes = True  # SQLAlchemyのモデルをJSONに変換するために必要
