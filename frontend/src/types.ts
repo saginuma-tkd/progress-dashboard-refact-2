@@ -157,3 +157,14 @@ export interface MockExamRecord {
   deviation: number | null;
   exam_date: string;
 }
+
+export interface SchoolEvent {
+  id: number;
+  tenant_id: number;
+  school_id?: number | null;
+  title: string;
+  start_date: string;
+  end_date: string;
+  category: string;
+  description?: string;
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Users, GraduationCap, BookOpen, Map, Library, FileText, BarChart2, Database, FileSearch, Component, ClockAlert, Files, Settings, Grid2X2 } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, Map, Library, FileText, BarChart2, Database, FileSearch, Component, ClockAlert, Files, Settings, Grid2X2, CalendarDays } from 'lucide-react';
 
 // コンポーネントのインポート
 import UserManagement from '../components/admin/UserManagement';
@@ -18,6 +18,7 @@ import InactiveUserPopup from '../components/admin/InactiveUserPopup';
 import TeachingMaterialManagement from '../components/admin/TeachingMaterialManagement';
 import { title } from 'node:process';
 import AttendanceManagement from '../components/admin/AttendanceManagement';
+import SchoolEventManagement from '../components/admin/SchooleventManagement';
 
 export default function Admin() {
     // ★追加: 各機能にポップなテーマカラー(colorClass)を追加！
@@ -61,7 +62,11 @@ export default function Admin() {
         // {
         //     title: "振替・欠席確認", icon: Grid2X2, description: "振替残数・欠席数の確認",
         //     colorClass: "bg-purple-100 text-purple-600", component: <AttendanceManagement />
-        // }
+        // },
+        {
+            title: "カレンダー予定管理", icon: CalendarDays, description: "休校日や模試などの予定を管理",
+            colorClass: "bg-pink-100 text-pink-600", component: <SchoolEventManagement />
+        },
     ];
 
     return (

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Plus, Trash2, Calendar, FileText, BarChart2, Clock, CheckCircle, ChevronLeft, ChevronRight, Eye, Printer, Edit } from 'lucide-react';
 import api from '../lib/api';
+import { SchoolEvent } from '../types';
 import html2canvas from 'html2canvas';
 
 
@@ -123,17 +124,21 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
     const [editingPastId, setEditingPastId] = useState<number | null>(null);
     const [editingMockId, setEditingMockId] = useState<number | null>(null);
 
+    const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>([]);
+
     // --- データ取得 ---
     const fetchData = async () => {
         try {
-            const [accRes, pastRes, mockRes] = await Promise.all([
+            const [accRes, pastRes, mockRes, calRes] = await Promise.all([
                 api.get(`/exams/acceptance/${studentId}`),
                 api.get(`/exams/pastexam/${studentId}`),
-                api.get(`/exams/mock/${studentId}`)
+                api.get(`/exams/mock/${studentId}`),
+                api.get('/calendar/events')
             ]);
             setAcceptances(accRes.data);
             setPastExams(pastRes.data);
             setMockExams(mockRes.data);
+            setSchoolEvents(calRes.data)
         } catch (e) { console.error(e); }
     };
 
@@ -243,6 +248,22 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
             if (acc.announcement_date === dateStr) events.push({ type: '発表', title: title, color: 'bg-green-100 text-green-800 border-green-200' });
             if (acc.procedure_deadline === dateStr) events.push({ type: '手続', title: title, color: 'bg-yellow-100 text-yellow-800 border-yellow-200' });
         });
+
+        // --- 🌟 追加: 校舎・テナント共通の予定 ---
+        schoolEvents.forEach(ev => {
+            // start_date と end_date の範囲内にあるか判定
+            if (dateStr >= ev.start_date && dateStr <= ev.end_date) {
+                let color = 'bg-gray-100 text-gray-700 border-gray-200';
+                let typeName = '予定';
+
+                if (ev.category === 'holiday') { color = 'bg-red-50 text-red-600 border-red-200'; typeName = '休校'; }
+                else if (ev.category === 'exam') { color = 'bg-blue-50 text-blue-600 border-blue-200'; typeName = '模試'; }
+                else if (ev.category === 'event') { color = 'bg-orange-50 text-orange-600 border-orange-200'; typeName = '行事'; }
+
+                events.push({ type: typeName, title: ev.title, color });
+            }
+        });
+
         return events;
     };
 

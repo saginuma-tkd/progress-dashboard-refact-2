@@ -459,3 +459,22 @@ class Subject(Base):
 
     # 同一テナント内で同じ科目名が複数作られないようにする制約
     __table_args__ = (UniqueConstraint('tenant_id', 'name', name='_tenant_subject_name_uc'),)
+
+class SchoolEvent(Base):
+    __tablename__ = "school_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    
+    # 🌟 ここがポイント！Nullableにすることで、
+    # school_id が空なら「テナント全校舎共通」、値があれば「特定校舎限定」を表現します
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) 
+    
+    title = Column(String(255), nullable=False)          # イベントタイトル（例: 第1回全統模試、校舎休館日）
+    start_date = Column(Date, nullable=False)             # 開始日 (YYYY-MM-DD)
+    end_date = Column(Date, nullable=False)               # 終了日 (1日限りの予定ならstart_dateと同じにする)
+    category = Column(String(50), nullable=False)         # カテゴリ（例: 'exam', 'event', 'holiday' などフロントでの色分け用）
+    description = Column(Text, nullable=True)             # 詳細メモ（任意）
+    
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
