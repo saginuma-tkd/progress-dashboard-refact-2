@@ -169,7 +169,7 @@ export default function StudentManagement() {
                             <TableRow key={s.id}>
                                 {/* 🌟 2. 各行の先頭に自動生成されるログインIDを表示（等幅フォントで見やすく） */}
                                 <TableCell className="font-mono text-sm text-blue-600 font-medium">
-                                    student_{s.id}
+                                    student{s.id}
                                 </TableCell>
                                 <TableCell className="font-medium">{s.name}</TableCell>
                                 <TableCell>{s.grade}</TableCell>

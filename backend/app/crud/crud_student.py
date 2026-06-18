@@ -61,7 +61,7 @@ def create_student(db: Session, data: dict, current_user: models.User) -> models
     db.flush()  # DBへ送信し、new_student.id を確定させる
 
     # 2. 生徒ログイン用アカウントの自動生成
-    generated_username = f"student_{new_student.id}"
+    generated_username = f"student{new_student.id}"
     hashed_pw = get_password_hash("password123")
 
     new_user = models.User(
