@@ -18,7 +18,7 @@ import InactiveUserPopup from '../components/admin/InactiveUserPopup';
 import TeachingMaterialManagement from '../components/admin/TeachingMaterialManagement';
 import { title } from 'node:process';
 import AttendanceManagement from '../components/admin/AttendanceManagement';
-import SchoolEventManagement from '../components/admin/SchooleventManagement';
+import SchoolEventManagement from '../components/admin/SchoolEventManagement';
 
 export default function Admin() {
     // ★追加: 各機能にポップなテーマカラー(colorClass)を追加！
