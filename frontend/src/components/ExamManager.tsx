@@ -125,6 +125,7 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
     const [editingMockId, setEditingMockId] = useState<number | null>(null);
 
     const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>([]);
+    const [selectedCalEvent, setSelectedCalEvent] = useState<any>(null);
 
     // --- データ取得 ---
     const fetchData = async () => {
@@ -239,19 +240,20 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
     const getDayEvents = (day: number | null) => {
         if (!day) return [];
         const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const events: { type: string, title: string, color: string }[] = [];
+        const events: any[] = []; // 🌟 型を any[] に変更
 
+        // --- 入試日程 ---
         acceptances.forEach(acc => {
             const title = `${acc.university_name} ${acc.faculty_name || ''}`.trim();
-            if (acc.application_deadline === dateStr) events.push({ type: '願書', title: title, color: 'bg-purple-100 text-purple-800 border-purple-200' });
-            if (acc.exam_date === dateStr) events.push({ type: '試験', title: title, color: 'bg-red-100 text-red-800 border-red-200' });
-            if (acc.announcement_date === dateStr) events.push({ type: '発表', title: title, color: 'bg-green-100 text-green-800 border-green-200' });
-            if (acc.procedure_deadline === dateStr) events.push({ type: '手続', title: title, color: 'bg-yellow-100 text-yellow-800 border-yellow-200' });
+            // 🌟 rawData と source を追加
+            if (acc.application_deadline === dateStr) events.push({ type: '願書', title, color: 'bg-purple-100 text-purple-800 border-purple-200', source: 'acceptance', rawData: acc });
+            if (acc.exam_date === dateStr) events.push({ type: '試験', title, color: 'bg-red-100 text-red-800 border-red-200', source: 'acceptance', rawData: acc });
+            if (acc.announcement_date === dateStr) events.push({ type: '発表', title, color: 'bg-green-100 text-green-800 border-green-200', source: 'acceptance', rawData: acc });
+            if (acc.procedure_deadline === dateStr) events.push({ type: '手続', title, color: 'bg-yellow-100 text-yellow-800 border-yellow-200', source: 'acceptance', rawData: acc });
         });
 
-        // --- 🌟 追加: 校舎・テナント共通の予定 ---
+        // --- 校舎・テナント共通の予定 ---
         schoolEvents.forEach(ev => {
-            // start_date と end_date の範囲内にあるか判定
             if (dateStr >= ev.start_date && dateStr <= ev.end_date) {
                 let color = 'bg-gray-100 text-gray-700 border-gray-200';
                 let typeName = '予定';
@@ -260,10 +262,10 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                 else if (ev.category === 'exam') { color = 'bg-blue-50 text-blue-600 border-blue-200'; typeName = '模試'; }
                 else if (ev.category === 'event') { color = 'bg-orange-50 text-orange-600 border-orange-200'; typeName = '行事'; }
 
-                events.push({ type: typeName, title: ev.title, color });
+                // 🌟 rawData と source を追加
+                events.push({ type: typeName, title: ev.title, color, source: 'school_event', rawData: ev });
             }
         });
-
         return events;
     };
 
@@ -622,7 +624,11 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                                 <div className="text-[10px] md:text-xs font-bold text-gray-500 mb-1">{day}</div>
                                                 <div className="flex-1 flex flex-col gap-1 overflow-y-auto scrollbar-hide">
                                                     {getDayEvents(day).map((ev, j) => (
-                                                        <div key={j} className={`text-[9px] md:text-xs px-1 md:px-1.5 py-0.5 md:py-1 rounded border truncate ${ev.color} leading-tight shadow-sm`}>
+                                                        <div
+                                                            key={j}
+                                                            onClick={(e) => { e.stopPropagation(); setSelectedCalEvent(ev); }} // 🌟 クリックイベント追加
+                                                            className={`text-[9px] md:text-xs px-1 md:px-1.5 py-0.5 md:py-1 rounded border truncate ${ev.color} leading-tight shadow-sm cursor-pointer hover:opacity-80 transition-opacity`} // 🌟 cursor-pointer等追加
+                                                        >
                                                             <span className="font-bold mr-0.5">[{ev.type.slice(0, 1)}]</span><span className="hidden md:inline">{ev.title}</span>
                                                         </div>
                                                     ))}
@@ -802,6 +808,40 @@ export default function ExamManager({ studentId, readOnly = false }: ExamManager
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* カレンダー詳細表示モーダル */}
+            <Dialog open={!!selectedCalEvent} onOpenChange={(open) => !open && setSelectedCalEvent(null)}>
+                <DialogContent className="w-[90vw] sm:max-w-[400px]">
+                    <DialogHeader className={`${selectedCalEvent?.color?.split(' ')[0]} p-4 border-b -m-6 mb-2 rounded-t-lg`}>
+                        <DialogTitle className="flex items-center gap-2">
+                            <span className="bg-white px-2 py-0.5 rounded text-xs border">{selectedCalEvent?.type}</span>
+                            {selectedCalEvent?.title}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-3">
+                        {/* 予定・行事の場合 */}
+                        {selectedCalEvent?.source === 'school_event' && (
+                            <>
+                                <DetailRow label="期間" value={`${selectedCalEvent.rawData.start_date} 〜 ${selectedCalEvent.rawData.end_date}`} />
+                                <div className="mt-2 border-t pt-2">
+                                    <label className="text-xs text-gray-500 font-bold">詳細メモ</label>
+                                    <p className="text-sm whitespace-pre-wrap mt-1 text-gray-800">
+                                        {selectedCalEvent.rawData.description || "詳細なし"}
+                                    </p>
+                                </div>
+                            </>
+                        )}
+                        {/* 入試日程の場合 */}
+                        {selectedCalEvent?.source === 'acceptance' && (
+                            <>
+                                <DetailRow label="大学名" value={selectedCalEvent.rawData.university_name} />
+                                <DetailRow label="学部・学科" value={`${selectedCalEvent.rawData.faculty_name} ${selectedCalEvent.rawData.department_name}`} />
+                                <DetailRow label="入試方式" value={selectedCalEvent.rawData.exam_system} />
+                            </>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>
