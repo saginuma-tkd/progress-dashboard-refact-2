@@ -84,6 +84,9 @@ def create_student(db: Session, data: dict, current_user: models.User) -> models
     db.add(new_user)
     db.flush()
 
+    new_student.user_id = new_user.id
+    db.flush()
+
     # 4. 担当講師（メイン・サブ）の紐付け設定
     if data.get("main_instructor_id"):
         db.add(models.StudentInstructor(
