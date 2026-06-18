@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.db.database import get_db
+from app.models import models
+import random
 
 router = APIRouter()
 
@@ -40,3 +42,35 @@ def fix_constraint(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         return {"error": str(e)}
+
+@router.post("/migrate-student-usernames")
+def migrate_student_usernames(db: Session = Depends(get_db)):
+    """
+    既存の生徒のユーザー名を student_{id} から student_{6桁ランダム} に移行する1回限りのバッチ処理
+    """
+    # roleがstudentのユーザーを全取得
+    students = db.query(models.User).filter(models.User.role == "student").all()
+    updated_count = 0
+    
+    for user in students:
+        # すでに "student_6桁" になっている（長さが 15文字: s-t-u-d-e-n-t-_-1-2-3-4-5-6）ものはスキップ
+        if len(user.username) == 15 and user.username.startswith("student_"):
+            continue
+
+        # 新しいランダムIDを生成
+        while True:
+            random_digits = str(random.randint(100000, 999999))
+            new_username = f"student_{random_digits}"
+            
+            # 重複チェック
+            exists = db.query(models.User).filter(models.User.username == new_username).first()
+            if not exists:
+                user.username = new_username
+                updated_count += 1
+                break
+                
+    db.commit()
+    return {
+        "message": "生徒IDのランダム化マイグレーションが完了しました！",
+        "updated_count": updated_count
+    }

@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.models import models
 from app.core.security import get_password_hash
 
+import random
+
 
 def get_students_for_user(db: Session, user: models.User) -> List[models.Student]:
     """
@@ -60,8 +62,17 @@ def create_student(db: Session, data: dict, current_user: models.User) -> models
     db.add(new_student)
     db.flush()  # DBへ送信し、new_student.id を確定させる
 
-    # 2. 生徒ログイン用アカウントの自動生成
-    generated_username = f"student{new_student.id}"
+    # 🌟 2. 【変更】生徒ログイン用アカウントの自動生成（6桁ランダム）
+    # 重複しない6桁の数字が見つかるまでループして生成する
+    while True:
+        random_digits = str(random.randint(100000, 999999))
+        generated_username = f"student_{random_digits}"
+        
+        # 直接クエリを叩いて存在確認（循環インポート回避のため crud_user は呼ばない）
+        exists = db.query(models.User).filter(models.User.username == generated_username).first()
+        if not exists:
+            break # 重複していなければループを抜ける
+
     hashed_pw = get_password_hash("password123")
 
     new_user = models.User(
@@ -71,11 +82,7 @@ def create_student(db: Session, data: dict, current_user: models.User) -> models
         school=target_school
     )
     db.add(new_user)
-    db.flush()  # new_user.id を確定させる
-
-    # 3. 生徒とログインアカウントの紐付け
-    new_student.user_id = new_user.id
-    db.flush() 
+    db.flush()
 
     # 4. 担当講師（メイン・サブ）の紐付け設定
     if data.get("main_instructor_id"):

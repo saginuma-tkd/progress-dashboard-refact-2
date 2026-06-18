@@ -353,6 +353,14 @@ def read_students_with_details(
     current_user: models.User = Depends(deps.get_current_admin_user)
 ):
     students = crud_student.get_students_for_user(db, current_user)
+    
+    # 🌟 1. 生徒の user_id を使って、UserテーブルからログインID(username)を一括取得（超高速化）
+    user_ids = [s.user_id for s in students if s.user_id]
+    user_map = {}
+    if user_ids:
+        users = db.query(models.User).filter(models.User.id.in_(user_ids)).all()
+        user_map = {u.id: u.username for u in users}
+
     results = []
     
     for s in students:
@@ -377,6 +385,7 @@ def read_students_with_details(
         results.append({
             "id": s.id,
             "name": s.name,
+            "username": user_map.get(s.user_id), # 🌟 2. ここでログインIDを追加！
             "grade": getattr(s, "grade", None),
             "school": getattr(s, "school", ""), # 塾の校舎名
             "previous_school": getattr(s, "previous_school", ""), # 在籍/出身校

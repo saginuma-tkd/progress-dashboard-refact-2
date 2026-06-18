@@ -27,6 +27,8 @@ class StudentBase(BaseModel):
     grade: Optional[str] = None
     previous_school: Optional[str] = None
 
+    username: Optional[str] = None
+
 class StudentCreate(StudentBase):
     pass
 

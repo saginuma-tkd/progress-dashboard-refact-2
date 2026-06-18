@@ -118,7 +118,7 @@ export default function StudentManagement() {
 
     // 🌟 検索ロジックにログインID（student_XX）での部分一致検索を追加！
     const filteredStudents = students.filter(s => {
-        const loginId = `student_${s.id}`;
+        const loginId = s.username || "";
         return (
             (s.name && s.name.includes(searchTerm)) ||
             (s.school && s.school.includes(searchTerm)) ||
@@ -168,8 +168,10 @@ export default function StudentManagement() {
                         {filteredStudents.map((s) => (
                             <TableRow key={s.id}>
                                 {/* 🌟 2. 各行の先頭に自動生成されるログインIDを表示（等幅フォントで見やすく） */}
-                                <TableCell className="font-mono text-sm text-blue-600 font-medium">
-                                    student{s.id}
+                                <TableCell>
+                                    <span className="font-mono text-sm bg-gray-100 text-gray-700 px-2 py-1 rounded select-all cursor-pointer hover:bg-gray-200 transition-colors" title="クリックして全選択">
+                                        {s.username || "未設定"}
+                                    </span>
                                 </TableCell>
                                 <TableCell className="font-medium">{s.name}</TableCell>
                                 <TableCell>{s.grade}</TableCell>

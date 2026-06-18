@@ -98,6 +98,7 @@ export interface Student {
   id: number;
   name: string;
   grade?: string;
+  username?: string;
 }
 
 export interface DashboardData {
