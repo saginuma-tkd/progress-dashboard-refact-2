@@ -535,3 +535,31 @@ class ReorderItem(BaseModel):
 
 class BulkReorderRequest(BaseModel):
     items: List[ReorderItem]
+
+# --- 📅 校舎イベント (SchoolEvent) ---
+class SchoolEventBase(BaseModel):
+    title: str
+    start_date: date
+    end_date: date
+    category: str
+    description: Optional[str] = None
+
+class SchoolEventCreate(SchoolEventBase):
+    # school_id は作成者の権限（developerかadminか）によってバックエンド側で自動セットするため、
+    # フロントエンドからのリクエストボディには含めず、クリーンに保ちます
+    pass
+
+class SchoolEventUpdate(BaseModel):
+    title: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+
+class SchoolEventResponse(SchoolEventBase):
+    id: int
+    tenant_id: int
+    school_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
