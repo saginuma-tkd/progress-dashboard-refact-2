@@ -16,7 +16,7 @@ from app.core.scheduler import start_scheduler
 # 📦 Routers (アルファベット順や機能ごとに改行すると見やすいです)
 # -------------------------------------------------------------------
 from app.routers import (
-    admin, applications, attendance, audit, auth, backup, charts, chat,
+    admin, applications, attendance, audit, auth, backup, calendar, charts, chat,
     common, csv_import, dashboard, developer, exams, external, fix_db,
     materials, reports, routes, schools, student_report, students, system,
     system_admin, system_status, tenant_config
@@ -101,6 +101,7 @@ app.include_router(system_status.router, prefix=f"{API_V1}/system_status", tags=
 app.include_router(audit.router, prefix=f"{API_V1}/audit", tags=["Audit Logs"])
 app.include_router(backup.router, prefix=f"{API_V1}/backup", tags=["Backup"])
 app.include_router(csv_import.router, prefix=f"{API_V1}/csv_import", tags=["CSV Import"])
+app.include_router(calendar.router, prefix="/api/v1/calendar", tags=["Calendar"])
 
 # 6. 開発者 & メンテナンス系
 app.include_router(developer.router, prefix=f"{API_V1}/developer", tags=["Developer"])
