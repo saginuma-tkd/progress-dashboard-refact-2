@@ -46,7 +46,8 @@ def create_transfer_request(db: Session, request: schemas.TransferRequestCreate,
         original_date=request.original_date,
         candidate_dates=request.candidate_dates,
         reason=request.reason,
-        status="pending"
+        status="pending",
+        row_number=1
     )
     db.add(new_req)
     db.commit()
@@ -126,7 +127,8 @@ def create_absence_report(db: Session, request: schemas.AbsenceReportCreate, cur
         absence_date=request.absence_date,
         reason=request.reason,
         report_info=request.report_info,
-        status="pending"
+        status="pending",
+        row_number=1
     )
     db.add(new_rep)
     db.commit()
