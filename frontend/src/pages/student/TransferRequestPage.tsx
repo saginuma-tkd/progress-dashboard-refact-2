@@ -16,6 +16,7 @@ import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 
 const TransferRequestPage: React.FC = () => {
   const [studentName, setStudentName] = useState('');
+  const [StudentPlofile, setStudentPlofile] = useState<any>(null);
   const [instructors, setInstructors] = useState<{ id: number, username: string }[]>([]);
   const [formData, setFormData] = useState({
     instructor_id: '',
@@ -55,6 +56,9 @@ const TransferRequestPage: React.FC = () => {
         console.error("講師データの取得に失敗しました", err);
       }
     };
+    api.get('students/me')
+      .then(res => setStudentPlofile(res.data))
+      .catch(err => console.error(err));
     fetchData();
   }, []);
 
@@ -141,7 +145,7 @@ const TransferRequestPage: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-5">
                       <div className="space-y-1.5">
                         <Label className="text-gray-700">生徒氏名</Label>
-                        <Input value={studentName} disabled className="bg-gray-50 text-gray-500 border-gray-200" />
+                        <Input value={StudentPlofile?.name} disabled className="bg-gray-50 text-gray-500 border-gray-200" />
                       </div>
 
                       <div className="space-y-1.5">

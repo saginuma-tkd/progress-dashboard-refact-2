@@ -12,6 +12,7 @@ import { Calendar } from 'lucide-react';
 
 const AbsenceReportPage: React.FC = () => {
   const [studentName, setStudentName] = useState('');
+  const [StudentPlofile, setStudentPlofile] = useState<any>(null);
   const [instructors, setInstructors] = useState<{ id: number, username: string }[]>([]);
   const [formData, setFormData] = useState({
     instructor_id: '',
@@ -46,6 +47,9 @@ const AbsenceReportPage: React.FC = () => {
         console.error("講師データの取得に失敗しました", err);
       }
     };
+    api.get('students/me')
+      .then(res => setStudentPlofile(res.data))
+      .catch(err => console.error(err));
     fetchData();
   }, []);
 
@@ -154,7 +158,7 @@ const AbsenceReportPage: React.FC = () => {
                 <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-left space-y-2 text-sm text-gray-700">
                   <div>
                     <span className="font-medium text-gray-500 mr-2">生徒氏名:</span>
-                    {studentName}
+                    {StudentPlofile?.name}
                   </div>
                   <div>
                     <span className="font-medium text-gray-500 mr-2">担当講師:</span>
