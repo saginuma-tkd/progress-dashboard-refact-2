@@ -376,6 +376,8 @@ class TransferRequest(Base):
     student = relationship("Student", backref="transfer_requests")
     instructor = relationship("User", foreign_keys=[instructor_id])
 
+    row_number = Column(Integer, nullable=False, default=1)
+
     @property
     def student_name(self) -> str:
         """リレーションを経由して生徒のユーザー名を自動で返すプロパティ"""
@@ -409,6 +411,8 @@ class AbsenceReport(Base):
 
     student = relationship("Student", backref="absence_reports")
     instructor = relationship("User", foreign_keys=[instructor_id])
+
+    row_number = Column(Integer, nullable=False, default=1)
 
     @property
     def student_name(self) -> str:
