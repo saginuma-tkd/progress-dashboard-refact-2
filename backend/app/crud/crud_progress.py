@@ -175,7 +175,7 @@ def get_adjusted_duration(db: Session, student: Any, base_duration: float, book_
 
     # 取得した tenant_id を使って設定を読み込む
     setting = db.query(TenantSetting).filter(TenantSetting.tenant_id == tenant_id).first()
-    formula = str(setting.duration_slope_formula) if setting else "1.0 * x + 0.0 * y"
+    formula = str(setting.duration_slope_formula) if setting and setting.duration_slope_formula else "t"
 
     level_setting = db.query(RouteLevel).filter(
         RouteLevel.tenant_id == tenant_id,
