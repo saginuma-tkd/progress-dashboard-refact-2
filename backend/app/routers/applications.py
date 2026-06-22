@@ -215,9 +215,14 @@ def get_pending_count(
     a_query = db.query(models.AbsenceReport).filter(models.AbsenceReport.status == "pending")
     t_query = db.query(models.TransferRequest).filter(models.TransferRequest.status == "pending")
     
-    # 🌟 開発者以外は、自分の校舎（テナント）の申請のみに絞り込む
+    # 開発者以外は、自分の校舎（テナント）の申請のみに絞り込む
     if current_user.role != "developer":
         a_query = a_query.filter(models.AbsenceReport.tenant_id == current_user.tenant_id)
         t_query = t_query.filter(models.TransferRequest.tenant_id == current_user.tenant_id)
+
+    # 🌟 ここを追加！ 一般講師（user）の場合は、さらに「自分宛て」のものだけに絞り込む！
+    if current_user.role == "user":
+        a_query = a_query.filter(models.AbsenceReport.instructor_id == current_user.id)
+        t_query = t_query.filter(models.TransferRequest.instructor_id == current_user.id)
 
     return {"count": a_query.count() + t_query.count()}
