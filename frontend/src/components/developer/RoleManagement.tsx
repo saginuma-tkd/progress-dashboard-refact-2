@@ -68,6 +68,7 @@ const RoleManagement: React.FC = () => {
     try {
       await api.post('/developer/users/', {
         username: username,
+        password: "password123",
         role: role,
         school_id: role === 'developer' ? null : (schoolId === "" ? null : Number(schoolId))
       });
@@ -80,7 +81,18 @@ const RoleManagement: React.FC = () => {
       fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.detail || 'ユーザーの作成に失敗しました');
+
+      const detail = err.response?.data?.detail;
+      let errorMessage = 'ユーザーの作成に失敗しました';
+
+      // detailが文字列ならそのまま表示、配列（422エラー等）なら最初のメッセージを抽出
+      if (typeof detail === 'string') {
+        errorMessage = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        errorMessage = `入力エラー: ${detail[0].loc?.join('.')} - ${detail[0].msg}`;
+      }
+
+      toast.error(errorMessage);
     } finally {
       setCreating(false);
     }
@@ -140,6 +152,9 @@ const RoleManagement: React.FC = () => {
   };
 
   const filteredUsers = users.filter(user => {
+    // 生徒はこの画面の管理対象外なので除外！
+    if (user.role === 'student') return false;
+
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     return matchesSearch && matchesRole;
