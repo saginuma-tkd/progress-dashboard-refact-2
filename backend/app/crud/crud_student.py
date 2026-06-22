@@ -33,7 +33,7 @@ def get_students_for_user(db: Session, user: models.User) -> List[models.Student
 
 
 def get_student(db: Session, student_id: int) -> models.Student:
-    return db.query(models.Student).filter(models.Student.id == student_id).first().order_by(models.Student.id).all()
+    return db.query(models.Student).filter(models.Student.id == student_id).first().order_by(models.Student.id)
 
 
 def get_student_with_details(db: Session, student_id: int) -> models.Student:

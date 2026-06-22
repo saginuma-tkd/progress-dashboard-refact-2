@@ -122,7 +122,7 @@ def get_materials(db: Session, current_user: User, subject_id: Optional[int] = N
     return query.order_by(models.TeachingMaterial.created_at.desc()).all()
 
 def get_material(db: Session, material_id: int, current_user: User):
-    return db.query(models.TeachingMaterial).filter(models.TeachingMaterial.id == material_id).first().order_by(models.TeachingMaterial.id).all()
+    return db.query(models.TeachingMaterial).filter(models.TeachingMaterial.id == material_id).first().order_by(models.TeachingMaterial.id)
 
 def delete_material(db: Session, material_id: int, current_user: User):
     db_material = get_material(db, material_id, current_user)

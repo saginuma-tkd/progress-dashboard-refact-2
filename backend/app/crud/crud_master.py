@@ -21,12 +21,12 @@ def get_all_subjects(db: Session, current_user: Optional[User] = None) -> List[s
         
     else:
         # 万が一 current_user がない場合（初期シード時など）は、これまで通りMasterTextbookから拾う
-        query = db.query(MasterTextbook.subject).distinct().order_by(MasterTextbook.id).all()
+        query = db.query(MasterTextbook.subject).distinct().order_by(MasterTextbook.id)
         results = query.all()
         return [r[0] for r in results]
 
 def get_master_textbooks(db: Session, subject: Optional[str] = None, current_user: Optional[User] = None) -> List[MasterTextbook]:
-    query = db.query(MasterTextbook).order_by(MasterTextbook.id).all()
+    query = db.query(MasterTextbook).order_by(MasterTextbook.id)
     
     # 🌟 追加: テナント全体用か自分の校舎用の参考書だけ取得
     if current_user and current_user.tenant_id:
