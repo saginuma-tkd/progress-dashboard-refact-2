@@ -26,7 +26,7 @@ def get_all_subjects(db: Session, current_user: Optional[User] = None) -> List[s
         return [r[0] for r in results]
 
 def get_master_textbooks(db: Session, subject: Optional[str] = None, current_user: Optional[User] = None) -> List[MasterTextbook]:
-    query = db.query(MasterTextbook)
+    query = db.query(MasterTextbook).order_by(MasterTextbook.id.all())
     
     # 🌟 追加: テナント全体用か自分の校舎用の参考書だけ取得
     if current_user and current_user.tenant_id:

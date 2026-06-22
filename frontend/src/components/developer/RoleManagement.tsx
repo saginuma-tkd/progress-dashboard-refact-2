@@ -153,7 +153,7 @@ const RoleManagement: React.FC = () => {
 
   const filteredUsers = users.filter(user => {
     // 生徒はこの画面の管理対象外なので除外！
-    if (user.role === 'student') return false;
+    if (user.role === 'student' || user.role === 'super-admin') return false;
 
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;

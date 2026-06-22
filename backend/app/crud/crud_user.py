@@ -20,7 +20,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_users(db: Session, current_user: models.User) -> List[models.User]:
     """権限に応じたユーザー一覧を取得する"""
-    query = db.query(models.User).filter(models.User.role != 'student')
+    query = db.query(models.User).filter(models.User.role != 'student').order_by(models.User.id.all())
     
     if current_user.role == 'developer':
         return query.all()
