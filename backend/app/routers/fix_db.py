@@ -4,6 +4,8 @@ from sqlalchemy import text
 from app.db.database import get_db
 from app.models import models
 import random
+import boto3
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -74,3 +76,29 @@ def migrate_student_usernames(db: Session = Depends(get_db)):
         "message": "生徒IDのランダム化マイグレーションが完了しました！",
         "updated_count": updated_count
     }
+
+@router.get("/test-s3-access")
+def test_s3_access():
+    """
+    バックエンドの権限で、直接S3からファイルを読めるかテストするエンドポイント
+    """
+    try:
+        # 1. クライアント作成
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION
+        )
+        
+        # 🌟 2. ここに、エラーになった教材の「S3キー（パス）」を入れてください！
+        # 例: "tenants/1/materials/....pdf"
+        test_key = "ここにエラーになったS3キーを直接コピペ！"
+        
+        # 3. バックエンドから直接「ファイル情報」を取得してみる（ダウンロード権限のテスト）
+        s3.head_object(Bucket=settings.S3_BUCKET_NAME, Key=test_key)
+        
+        return {"status": "SUCCESS", "message": "バックエンドは完璧にファイルにアクセスできます！URLの作り方の問題です！"}
+        
+    except Exception as e:
+        return {"status": "FAILED", "error": str(e), "message": "バックエンド自体がAWSに弾かれています！IAMやバケット設定の問題です！"}
