@@ -102,3 +102,44 @@ def test_s3_access():
         
     except Exception as e:
         return {"status": "FAILED", "error": str(e), "message": "バックエンド自体がAWSに弾かれています！IAMやバケット設定の問題です！"}
+    
+@router.get("/test-s3-list")
+def test_s3_list():
+    """
+    S3バケットの玄関のドアが開き、中身が見えるかをテストする
+    """
+    import boto3
+    from app.core.config import settings
+    try:
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION
+        )
+        
+        # 🌟 指定したバケットの中身を最大5件だけ取得してみる
+        response = s3.list_objects_v2(Bucket=settings.S3_BUCKET_NAME, MaxKeys=5)
+        
+        if 'Contents' in response:
+            files = [item['Key'] for item in response['Contents']]
+            return {
+                "status": "SUCCESS", 
+                "message": "大成功！バケットの中身が見えました！", 
+                "bucket_name": settings.S3_BUCKET_NAME,
+                "found_files": files
+            }
+        else:
+            return {
+                "status": "SUCCESS", 
+                "message": "バケットにはアクセスできましたが、中は空っぽです！",
+                "bucket_name": settings.S3_BUCKET_NAME
+            }
+            
+    except Exception as e:
+        return {
+            "status": "FAILED", 
+            "error": str(e), 
+            "bucket_name": getattr(settings, 'S3_BUCKET_NAME', '未設定'),
+            "message": "玄関で弾かれました！バケット名が間違っているか、キーの主が違います！"
+        }
