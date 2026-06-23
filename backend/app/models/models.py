@@ -382,7 +382,7 @@ class TransferRequest(Base):
     def student_name(self) -> str:
         """リレーションを経由して生徒のユーザー名を自動で返すプロパティ"""
         if self.student and self.student.user:
-            return self.student.user.name or self.student.user.username
+            return self.student.name
         return f"生徒ID: {self.student_id}"
 
     @property
@@ -417,7 +417,7 @@ class AbsenceReport(Base):
     @property
     def student_name(self) -> str:
         if self.student and self.student.user:
-            return self.student.user.name or self.student.user.username
+            return self.student.name
         return f"生徒ID: {self.student_id}"
 
     @property
