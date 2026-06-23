@@ -19,6 +19,7 @@ import TeachingMaterialManagement from '../components/admin/TeachingMaterialMana
 import { title } from 'node:process';
 import AttendanceManagement from '../components/admin/AttendanceManagement';
 import SchoolEventManagement from '../components/admin/SchoolEventManagement';
+import InlineHelp from '@/components/common/InlineHelp';
 
 export default function Admin() {
     // ★追加: 各機能にポップなテーマカラー(colorClass)を追加！

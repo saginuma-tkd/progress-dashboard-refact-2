@@ -11,6 +11,7 @@ import { AlertCircle, Send, CheckCircle2, MessageSquare, Lightbulb, ChevronDown,
 import { Badge } from '../components/ui/badge';
 import { ScrollArea } from '../components/ui/scroll-area';
 import api from '../lib/api';
+import InlineHelp from '../components/common/InlineHelp';
 
 // --- 型定義 ---
 interface ReportItem {
@@ -209,6 +210,13 @@ const BugReport: React.FC = () => {
             <div className="flex-none">
                 <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                     <MessageSquare className="w-6 h-6 text-yellow-600" /> バグ報告・要望
+                    <InlineHelp
+                        title="基本操作"
+                        content={<>
+                            <p>・テキストボックスの数値は半角数字で入力してください</p>
+                            <p>・プルダウンメニューから選択する場合は、表示されている項目をクリックしてください</p>
+                        </>}
+                    />
                 </h2>
             </div>
 
