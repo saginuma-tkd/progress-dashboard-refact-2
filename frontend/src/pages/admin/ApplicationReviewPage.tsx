@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import HelpDialog from '../../components/common/HelpDialog';
+import { helpApplicationReview } from '../../components/help';
 
 export default function ApplicationReviewPage() {
   const { user } = useAuth();
@@ -160,6 +162,7 @@ export default function ApplicationReviewPage() {
                 <BellRing className="w-3.5 h-3.5" /> 未処理 {totalPendingCount}件
               </span>
             )}
+            <HelpDialog content={helpApplicationReview} />
           </h2>
           {isInstructor && (
             <Badge className="bg-blue-100 text-blue-800 border-blue-200 flex items-center gap-1">
