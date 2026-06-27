@@ -511,10 +511,12 @@ export default function ProgressList({ studentId, onUpdate, readOnly = false }: 
             {sortedList.map((item) => {
               const isCompleted = item.total_units > 0 && item.completed_units >= item.total_units;
               return (
-                <TableRow key={item.id}>
+                <TableRow
+                  key={item.id}
+                  className={isCompleted ? "bg-green-50/80 hover:bg-green-100/80 transition-colors border-b-green-200" : ""}
+                >
                   <TableCell className="font-medium">
                     <div className="text-xs text-muted-foreground mb-0.5">{item.subject} / {item.level || 'カスタム'}
-                      {isCompleted && <span className="text-[9px] bg-green-500 text-white px-1.5 py-0.5 rounded-sm flex items-center gap-0.5 font-bold"><CheckCircle2 className="w-2.5 h-2.5" /> 達成</span>}
                     </div>
                     {item.book_name}
                   </TableCell>
