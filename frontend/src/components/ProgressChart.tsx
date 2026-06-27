@@ -194,7 +194,7 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 min-h-0 relative">
+      <CardContent className="flex-1 min-h-0 relative touch-pan-y">
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
             読み込み中...
