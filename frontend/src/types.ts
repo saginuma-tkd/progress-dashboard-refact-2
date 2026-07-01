@@ -1,10 +1,16 @@
+// frontend/src/types.ts
+
+// =======================
+// 英検・ダッシュボードサマリー関連の型
+// =======================
 export interface EikenResult {
   id: number;
   student_id: number;
   exam_date: string;
   grade: string;
-  score: number;
-  result: string;
+  cse_score?: number; // 🌟 修正: バックエンドに合わせて cse_score に変更
+  result?: string;
+  target_grade?: string; // 🌟 追加: 新しく追加した目標級カラム
 }
 
 export interface DashboardSummary {
@@ -16,14 +22,9 @@ export interface DashboardSummary {
   } | null;
 }
 
-export interface ProgressItem {
-  id: number;
-  subject: string;
-  reference_book: string;
-  completed_units: number;
-  total_units: number;
-}
-
+// =======================
+// 教材・タグ関連の型
+// =======================
 export interface Tag {
   id: number;
   name: string;
@@ -38,7 +39,6 @@ export interface TeachingMaterial {
   file_size?: number;
   internal_memo?: string;
   category?: 'material' | 'route_table';
-  // ↓ここを複数形（配列）に変更しました
   subjects?: Tag[];
   detail_tags?: Tag[];
   created_at?: string;
@@ -51,7 +51,7 @@ export interface TeachingMaterial {
 export interface ProgressItem {
   id: number;
   subject: string;
-  book_name: string;
+  book_name: string; // 🌟 修正: reference_bookの古い重複定義を削除し、こちらに統一
   completed_units: number;
   total_units: number;
   level?: string;
@@ -108,6 +108,7 @@ export interface DashboardData {
   eiken_grade?: string;
   eiken_score?: string;
   eiken_date?: string;
+  eiken_target?: string; // 🌟 追加: Dashboard.tsx で受け取る目標級
 }
 
 // =======================
@@ -117,7 +118,6 @@ export interface User {
   username: string;
   role: 'developer' | 'admin' | 'user' | 'instructor' | 'student' | 'super_admin';
   school?: string;
-  // バックエンドのモデルに合わせて、後々 id などを追加してもOKです
 }
 
 // =======================

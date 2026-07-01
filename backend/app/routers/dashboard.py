@@ -31,6 +31,7 @@ class DashboardData(BaseModel):
     eiken_grade: Optional[str] = "未登録"
     eiken_score: Optional[str] = "-"
     eiken_date: Optional[str] = "-"
+    eiken_target: Optional[str] = "未設定"
 
 # ==========================================
 # ★修正: 固定パスのエンドポイントを上に移動！
@@ -86,6 +87,19 @@ def get_dashboard_data(student_id: int, session: Session = Depends(get_db)):
     data = crud_progress.get_dashboard_summary(session, student_id)
     if not data:
         raise HTTPException(status_code=404, detail="Student not found")
+
+    eiken = session.query(EikenResult).filter(EikenResult.student_id == student_id).order_by(desc(EikenResult.id)).first()
+    if eiken:
+        data["eiken_grade"] = eiken.grade or "未登録"
+        data["eiken_score"] = str(eiken.cse_score) if eiken.cse_score is not None else "-"
+        data["eiken_date"] = eiken.exam_date or "-"
+        data["eiken_target"] = eiken.target_grade or "未設定"
+    else:
+        data["eiken_grade"] = "未登録"
+        data["eiken_score"] = "-"
+        data["eiken_date"] = "-"
+        data["eiken_target"] = "未設定"
+
     return data
 
 @router.get("/chart/{student_id}")

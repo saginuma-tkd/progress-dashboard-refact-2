@@ -129,7 +129,10 @@ def update_student_progress(
     return {"message": f"Updated {count} records"}
 
 class EikenUpdate(BaseModel):
-    score: str # 連結文字列を受け取る
+    grade: str
+    cse_score: str
+    exam_date: str
+    target_grade: str
 
 @router.patch("/{student_id}/eiken")
 def update_student_eiken(
@@ -138,33 +141,21 @@ def update_student_eiken(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    # 最新の英検結果を取得、なければ作成
     eiken_result = (
         deps.get_tenant_query(db, EikenResult, current_user)
         .filter(EikenResult.student_id == student_id)
-        .order_by(desc(EikenResult.exam_date))
+        .order_by(desc(EikenResult.id)) # id降順で最新を取得
         .first()
     )
 
     if not eiken_result:
         eiken_result = EikenResult(student_id=student_id)
         db.add(eiken_result)
-
-    # 連結文字列 "準2級 合格 / CSE 1950 / 2025-06-01" を分解
-    parts = eiken_data.score.split(' / ')
-    
-    # 1. Grade (必須扱い)
-    eiken_result.grade = parts[0] if len(parts) > 0 else "未登録"
-
-    # 2. CSE Score
-    if len(parts) > 1 and parts[1].replace('CSE ', '').isdigit():
-        eiken_result.cse_score = int(parts[1].replace('CSE ', ''))
-    else:
-        eiken_result.cse_score = None
-
-    # 3. Date
-    if len(parts) > 2:
-        eiken_result.exam_date = parts[2]
+        
+    eiken_result.grade = eiken_data.grade or "未登録"
+    eiken_result.cse_score = int(eiken_data.cse_score) if str(eiken_data.cse_score).isdigit() else None
+    eiken_result.exam_date = eiken_data.exam_date
+    eiken_result.target_grade = eiken_data.target_grade # 新カラム
 
     db.commit()
     return {"message": "Eiken info updated"}

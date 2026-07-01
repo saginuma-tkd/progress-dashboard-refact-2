@@ -242,6 +242,7 @@ class EikenResult(Base):
     cse_score: Mapped[Optional[int]] = mapped_column(Integer)  # add_eiken_table.py の定義に合わせて 'score' ではなく 'cse_score' に
     exam_date: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     result: Mapped[Optional[str]] = mapped_column(String)
+    target_grade: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     student = relationship("Student", back_populates="eiken_results")
 

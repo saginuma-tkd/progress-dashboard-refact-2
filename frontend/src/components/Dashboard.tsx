@@ -29,11 +29,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const [chartTotals, setChartTotals] = useState({ subject: "全体", completed: 0, planned: 0 });
+
   // 英検編集用State
   const [isEikenModalOpen, setIsEikenModalOpen] = useState(false);
   const [editEikenGrade, setEditEikenGrade] = useState("");
   const [editEikenScore, setEditEikenScore] = useState("");
   const [editEikenDate, setEditEikenDate] = useState("");
+  const [editEikenTarget, setEditEikenTarget] = useState("");
 
   // 🌟 修正: メモ用Stateを「個別」と「共通」に分割
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
@@ -49,9 +52,7 @@ export default function Dashboard() {
 
   // 表示用に整形したデータを保持するState
   const [displayEiken, setDisplayEiken] = useState({
-    grade: "未登録",
-    score: "-",
-    date: "-"
+    grade: "未登録", score: "-", date: "-", target: "未設定"
   });
   const isStudent = user?.role === 'student';
 
@@ -101,28 +102,16 @@ export default function Dashboard() {
       const res = await api.get<DashboardData>(`/dashboard/${selectedStudentId}`);
       setData(res.data);
 
-      let g = res.data.eiken_grade || "";
-      let s = res.data.eiken_score || "";
-      let d = res.data.eiken_date || "";
-
-      if (s.includes(" / ")) {
-        const parts = s.split(" / ");
-        g = parts[0] || "";
-        s = parts[1] || "";
-        d = parts[2] || "";
-      }
-
-      g = g.replace(" None", "").replace(" 合格", "").replace(" 不合格", "").trim();
-      s = s.replace("CSE ", "").trim();
-
-      if (g !== "未登録" && g !== "" && !g.endsWith("級")) {
-        g = `${g}級`;
-      }
-
-      setDisplayEiken({ grade: g || "未登録", score: s || "-", date: d || "-" });
-      setEditEikenGrade(g);
-      setEditEikenScore(s);
-      setEditEikenDate(d);
+      setDisplayEiken({
+        grade: res.data.eiken_grade || "未登録",
+        score: res.data.eiken_score || "-",
+        date: res.data.eiken_date || "-",
+        target: res.data.eiken_target || "未設定"
+      });
+      setEditEikenGrade(res.data.eiken_grade === "未登録" ? "" : res.data.eiken_grade || "");
+      setEditEikenScore(res.data.eiken_score === "-" ? "" : res.data.eiken_score || "");
+      setEditEikenDate(res.data.eiken_date === "-" ? "" : res.data.eiken_date || "");
+      setEditEikenTarget(res.data.eiken_target === "未設定" ? "" : res.data.eiken_target || "");
 
     } catch (e) { console.error(e); }
   };
@@ -134,8 +123,12 @@ export default function Dashboard() {
   // 3. 英検スコア更新
   const handleUpdateEiken = async () => {
     try {
-      const combinedScore = `${editEikenGrade} / CSE ${editEikenScore} / ${editEikenDate}`;
-      await api.patch(`/students/${selectedStudentId}/eiken`, { score: combinedScore });
+      await api.patch(`/students/${selectedStudentId}/eiken`, {
+        grade: editEikenGrade,
+        cse_score: editEikenScore,
+        exam_date: editEikenDate,
+        target_grade: editEikenTarget
+      });
       setIsEikenModalOpen(false);
       fetchDashboardData();
     } catch (e) { alert("更新失敗"); }
@@ -253,33 +246,38 @@ export default function Dashboard() {
         {/* 左列 */}
         <div className="flex flex-col gap-4 w-full h-full">
           <div id="chart-container" className="w-full flex-1 min-h-[300px] bg-white p-2 rounded border">
-            <ProgressChart studentId={selectedStudentId} refreshTrigger={refreshTrigger} />
+            <ProgressChart
+              studentId={selectedStudentId}
+              refreshTrigger={refreshTrigger}
+              onChartDataCalculated={(subj, comp, plan) => setChartTotals({ subject: subj, completed: comp, planned: plan })}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4 shrink-0">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-sm font-medium">総学習時間</CardTitle>
+                <CardTitle className="text-sm font-medium">学習時間 ({chartTotals.subject})</CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="text-2xl font-bold">{data?.total_study_time || 0}<span className="text-sm font-normal ml-1">時間</span></div>
+                <div className="text-2xl font-bold">{Math.round(chartTotals.completed * 10) / 10}<span className="text-sm font-normal ml-1">時間</span></div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-sm font-medium">学習予定</CardTitle>
+                <CardTitle className="text-sm font-medium">学習予定 ({chartTotals.subject})</CardTitle>
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="text-2xl font-bold">{data?.total_planned_time || 0}<span className="text-sm font-normal ml-1">時間</span></div>
+                <div className="text-2xl font-bold">{Math.round(chartTotals.planned * 10) / 10}<span className="text-sm font-normal ml-1">時間</span></div>
               </CardContent>
             </Card>
 
+            {/* 達成率は全体データのまま残す（もしくは計算式で出す） */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-sm font-medium">達成率</CardTitle>
+                <CardTitle className="text-sm font-medium">全体の達成率</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
@@ -287,25 +285,25 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="relative">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-sm font-medium">英検スコア</CardTitle>
-                <Award className="h-4 w-4 text-muted-foreground" />
+            {/* 🌟 修正: 英検カードを目標メインのデザインに */}
+            <Card className="relative bg-blue-50/30 border-blue-100">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
+                <CardTitle className="text-sm font-bold text-blue-800">英検目標</CardTitle>
+                <Award className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="flex flex-col gap-0.5">
-                  <div className="text-lg font-bold truncate leading-tight">
-                    {displayEiken.grade} <span className="text-sm font-normal">CSE: {displayEiken.score}</span>
+                <div className="flex flex-col gap-1">
+                  <div className="text-xl font-bold text-blue-700 leading-tight">
+                    {displayEiken.target !== "未設定" ? displayEiken.target : "目標未設定"}
                   </div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                    <Calendar className="w-3 h-3" />
-                    {displayEiken.date}
+                  <div className="text-sm font-medium text-gray-700 border-t border-blue-100 pt-1 mt-1">
+                    現状: {displayEiken.grade} <span className="text-xs text-muted-foreground ml-1">(CSE: {displayEiken.score})</span>
                   </div>
                 </div>
               </CardContent>
               {!isStudent && (
-                <Button variant="ghost" size="sm" className="absolute bottom-3 right-3 h-6 w-6 p-0 print:hidden" onClick={() => setIsEikenModalOpen(true)}>
-                  <Edit2 className="w-3 h-3 text-gray-500" />
+                <Button variant="ghost" size="sm" className="absolute bottom-2 right-2 h-7 w-7 p-0 bg-white shadow-sm border border-gray-200 print:hidden" onClick={() => setIsEikenModalOpen(true)}>
+                  <Edit2 className="w-3.5 h-3.5 text-gray-600" />
                 </Button>
               )}
             </Card>
@@ -323,11 +321,16 @@ export default function Dashboard() {
       {/* --- モーダル群 --- */}
       <Dialog open={isEikenModalOpen} onOpenChange={setIsEikenModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader><DialogTitle>英検情報編集</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>英検情報・目標の設定</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="space-y-2 pb-4 border-b border-dashed">
+              <Label htmlFor="target" className="text-blue-600 font-bold">🎯 次の目標級</Label>
+              <Input id="target" value={editEikenTarget} onChange={(e) => setEditEikenTarget(e.target.value)} placeholder="例: 2級" className="bg-blue-50" />
+            </div>
+            <div className="space-y-2"><Label className="text-gray-500 font-bold">現在の取得状況</Label></div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="grade">級</Label>
+                <Label htmlFor="grade">取得級</Label>
                 <Input id="grade" value={editEikenGrade} onChange={(e) => setEditEikenGrade(e.target.value)} placeholder="例: 準2級" />
               </div>
               <div className="space-y-2">
@@ -336,11 +339,11 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="date">試験日</Label>
+              <Label htmlFor="date">取得日</Label>
               <Input id="date" type="date" value={editEikenDate} onChange={(e) => setEditEikenDate(e.target.value)} />
             </div>
           </div>
-          <DialogFooter><Button onClick={handleUpdateEiken}>更新</Button></DialogFooter>
+          <DialogFooter><Button onClick={handleUpdateEiken}>保存</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

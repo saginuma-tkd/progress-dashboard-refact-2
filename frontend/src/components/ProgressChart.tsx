@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 interface ChartProps {
   studentId: number;
   refreshTrigger?: number;
+  onChartDataCalculated?: (subject: string, completedTime: number, plannedTime: number) => void;
 }
 
 interface RouteLevel {
@@ -18,7 +19,7 @@ interface RouteLevel {
   show_on_graph: boolean;
 }
 
-export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartProps) {
+export default function ProgressChart({ studentId, refreshTrigger = 0, onChartDataCalculated }: ChartProps) {
   const [subjects, setSubjects] = useState<string[]>(["全体"]);
   const [selectedSubject, setSelectedSubject] = useState("全体");
   const [chartData, setChartData] = useState<any[]>([]);
@@ -84,6 +85,20 @@ export default function ProgressChart({ studentId, refreshTrigger = 0 }: ChartPr
     };
     if (studentId) fetchData();
   }, [studentId, selectedSubject, refreshTrigger]);
+
+  useEffect(() => {
+    if (!onChartDataCalculated || !chartData) return;
+
+    // chartDataから時間を集計する
+    let totalCompleted = 0;
+    let totalPlanned = 0;
+    chartData.forEach(item => {
+      totalCompleted += Number(item.completed) || 0;
+      totalPlanned += Number(item.total) || 0;
+    });
+
+    onChartDataCalculated(selectedSubject, totalCompleted, totalPlanned);
+  }, [chartData, selectedSubject]);
 
   const safeChartData = chartData || [];
 
